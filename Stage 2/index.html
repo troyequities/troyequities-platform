@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TROY | Intelligence Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-base: #09090b; --bg-panel: #121214; --bg-hover: #1f1f22;
+            --border-subtle: #27272a; --border-bright: #e4e4e7;
+            --text-pure: #ffffff; --text-muted: #a1a1aa;
+            --accent-buy: #10b981; --accent-sell: #ef4444; --accent-brand: #3b82f6;
+            --pill-bg: #18181b;
+            --democrat-blue: #3b82f6; --republican-red: #ef4444; --independent-grey: #71717a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-pure); line-height: 1.5; overflow-x: hidden; }
+        h1, h2, h3, th { color: var(--text-pure); letter-spacing: 0.02em; }
+
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 2.5rem; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0; z-index: 100; }
+        .nav-left { display: flex; align-items: center; gap: 3rem; }
+        .logo { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.05em; cursor: pointer; }
+        .nav-links { display: flex; gap: 2rem; align-items: center; }
+        .nav-links a { color: var(--text-pure); text-decoration: none; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-muted); }
+        .nav-right { display: flex; align-items: center; gap: 1.5rem; }
+        .nav-search { background-color: var(--bg-base); border: 1px solid var(--border-subtle); color: var(--text-pure); padding: 0.5rem 1.2rem; font-size: 0.85rem; border-radius: 20px; outline: none; width: 250px; transition: border-color 0.2s; }
+        .nav-search:focus { border-color: var(--text-muted); }
+
+        .nav-dropdown { position: relative; display: inline-flex; align-items: center; padding-bottom: 1.5rem; margin-bottom: -1.5rem; z-index: 999; }
+        .nav-dropdown-content { display: none; position: absolute; top: 100%; left: -10px; background-color: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; min-width: 190px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 9999; overflow: hidden; }
+        .nav-dropdown:hover .nav-dropdown-content { display: block; }
+        .nav-dropdown-content a { padding: 0.75rem 1.25rem; display: block; color: var(--text-pure); text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s; cursor: pointer; border-bottom: 1px solid var(--border-subtle); }
+        .nav-dropdown-content a:last-child { border-bottom: none; }
+        .nav-dropdown-content a:hover { background-color: var(--bg-hover); color: var(--text-pure); }
+        .dropdown-caret { color: var(--text-muted); font-size: 0.6rem; cursor: pointer; margin-left: 4px; margin-top: 2px; transition: color 0.2s; }
+        .nav-dropdown:hover .dropdown-caret { color: var(--text-pure); }
+
+        .view-section { display: none; padding: 4rem 2.5rem; max-width: 1600px; margin: 0 auto; }
+        
+        .hero-section { min-height: 85vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .hero-title { font-size: 3.5rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; text-align: center; letter-spacing: -0.02em; }
+        .main-search-container { display: flex; align-items: center; margin: 0 auto 3.5rem auto; background-color: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 40px; width: 100%; max-width: 700px; padding: 0.4rem; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .main-search-input { flex: 1; background: transparent; border: none; color: var(--text-pure); padding: 1.2rem 1.5rem; font-size: 1.1rem; outline: none; }
+        .main-search-btn { background-color: var(--text-pure); color: var(--bg-base); border: none; padding: 1rem 2.5rem; border-radius: 30px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+        .main-search-btn:hover { opacity: 0.9; }
+        
+        .pill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; width: 100%; max-width: 700px; margin: 0 auto; }
+        .pill-card { background-color: transparent; border: 1px solid var(--border-subtle); border-radius: 30px; padding: 1rem 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
+        .pill-card:hover { border-color: var(--text-pure); color: var(--text-pure); }
+
+        .home-section-title { font-size: 0.9rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2rem; text-align: center; }
+        
+        .ticker-header { font-size: 2.5rem; font-weight: 400; margin-bottom: 2.5rem; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .metric-card { background-color: var(--bg-panel); border: 1px solid var(--border-subtle); padding: 1.5rem; border-radius: 8px; }
+        .metric-title { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; margin-bottom: 0.75rem; text-transform: uppercase; }
+        .metric-value { font-size: 1.8rem; font-weight: 400; word-wrap: break-word; overflow-wrap: break-word; }
+        
+        .signal-buy { color: var(--accent-buy); }
+        .signal-sell { color: var(--accent-sell); }
+        .signal-neutral { color: var(--text-pure); }
+
+        .table-container { background-color: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { background-color: var(--bg-panel); color: var(--text-muted); font-size: 0.75rem; font-weight: 600; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-subtle); text-transform: uppercase; }
+        td { padding: 1.25rem 1.5rem; font-size: 0.9rem; border-bottom: 1px solid var(--border-subtle); }
+        tr:hover { background-color: var(--bg-hover); }
+        .entity-link { color: var(--text-pure); text-decoration: none; font-weight: 500; cursor: pointer; }
+        .entity-link:hover { color: var(--accent-brand); text-decoration: underline; }
+        .pos-badge { padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .bg-buy { background-color: rgba(16, 185, 129, 0.15); color: var(--accent-buy); }
+        .bg-sell { background-color: rgba(239, 68, 68, 0.15); color: var(--accent-sell); }
+
+        .profile-header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+        .profile-header-left { display: flex; align-items: center; gap: 2rem; }
+        .profile-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-subtle); background-color: var(--bg-panel); }
+        .profile-name-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.25rem; }
+        .profile-name { font-size: 2.5rem; font-weight: 600; }
+        .profile-role { color: var(--text-muted); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .party-badge { padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+        .party-democrat { background-color: rgba(59, 130, 246, 0.15); color: var(--democrat-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .party-republican { background-color: rgba(239, 68, 68, 0.15); color: var(--republican-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+        
+        .profile-bio { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 2rem; max-width: 900px; border-left: 2px solid var(--border-subtle); padding-left: 1.5rem; }
+        .follow-btn { background-color: var(--text-pure); color: var(--bg-base); border: none; padding: 0.6rem 2rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .follow-btn:hover { opacity: 0.9; }
+        
+        .chart-box { background-color: var(--bg-panel); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-subtle); display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 2rem; width: 100%;}
+        .profile-grid-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin-bottom: 2rem; }
+        
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+        .grid-6-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+
+        .news-card { background-color: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column; overflow: hidden; }
+        .news-card:hover { transform: translateY(-4px); border-color: var(--text-muted); }
+        .news-card-img { width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid var(--border-subtle); }
+        .news-card-content { padding: 1.5rem; display: flex; flex-direction: column; flex: 1; }
+        .news-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-pure); line-height: 1.4; }
+        .news-meta { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+
+        .insider-card { background-color: var(--bg-panel); border: 1px solid var(--border-subtle); padding: 1.5rem; border-radius: 8px; text-align: center; cursor: pointer; transition: transform 0.2s; }
+        .insider-card:hover { transform: translateY(-4px); border-color: var(--text-muted); }
+        .insider-card img { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 1rem; object-fit: cover; }
+        .insider-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .insider-card p { font-size: 0.85rem; color: var(--text-muted); }
+
+        .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+        .filter-btn { background-color: var(--bg-panel); border: 1px solid var(--border-subtle); color: var(--text-muted); padding: 0.5rem 1.2rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .filter-btn:hover, .filter-btn.active { background-color: var(--text-pure); color: var(--bg-base); border-color: var(--text-pure); }
+
+        .dropdown-item { display: block; padding: 0.75rem 1rem; color: var(--text-pure); text-decoration: none; cursor: pointer; font-size: 0.85rem; }
+        .dropdown-item:hover { background-color: var(--bg-hover); }
+
+        #toast-container { position: fixed; bottom: 2rem; right: 2rem; display: flex; flex-direction: column; gap: 1rem; z-index: 9999; }
+        .toast { background-color: var(--bg-panel); border-left: 4px solid var(--accent-brand); padding: 1rem 1.5rem; border-radius: 6px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); min-width: 300px; animation: slideIn 0.3s ease-out forwards; }
+        .toast-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem; }
+        .toast-msg { color: var(--text-muted); font-size: 0.85rem; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-left">
+            <div class="logo" onclick="switchView('home-view')">TROY</div>
+            <div class="nav-links">
+                <a onclick="switchView('home-view')">HOME</a>
+                <a onclick="switchView('companies-view')">COMPANIES</a>
+                <div class="nav-dropdown">
+                    <a onclick="loadInsiders()">INSIDERS</a>
+                    <span class="dropdown-caret">▼</span>
+                    <div class="nav-dropdown-content">
+                        <a onclick="openPoliticalInsidersView()">Political Insiders</a>
+                        <a onclick="openCorporateInsidersView()">Corporate Insiders</a>
+                        <a onclick="openHedgeFundsView()">Hedge Funds</a>
+                    </div>
+                </div>
+                <a onclick="loadRankings()">RANKINGS</a>
+                <a onclick="loadNews()">NEWS</a>
+                <a onclick="loadPredictions('Politics')">PREDICTIONS</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <input type="text" class="nav-search" id="navInput" placeholder="Search tickers..." onkeydown="if(event.key === 'Enter') executeScan('navInput')">
+            <button id="nav-auth-btn" onclick="document.getElementById('auth-modal').style.display='flex'" style="background:none; border:1px solid var(--border-subtle); color:white; padding:0.5rem 1.2rem; border-radius:20px; cursor:pointer; font-size:0.85rem; font-weight:600;">LOG IN</button>
+            <div id="user-menu-container" style="position:relative; display:none;">
+                <button id="nav-user-icon" onclick="toggleDropdown()" style="background:var(--bg-panel); border:1px solid var(--border-subtle); color:white; padding:0.5rem; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; width:40px; height:40px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </button>
+                <div id="user-dropdown" style="display:none; position:absolute; top:50px; right:0; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:8px; width:220px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.5); z-index:200;">
+                    <div style="padding:1rem; border-bottom:1px solid var(--border-subtle); color:var(--text-muted); font-size:0.75rem;" id="dropdown-email">user@email.com</div>
+                    <a class="dropdown-item" onclick="loadWatchlist(); toggleDropdown();">Watchlist</a>
+                    <a class="dropdown-item" onclick="loadPortfolio(); toggleDropdown();">Portfolio</a>
+                    <a class="dropdown-item" onclick="alert('Profile settings pending deployment.'); toggleDropdown();">Settings</a>
+                    <a class="dropdown-item" style="color:var(--accent-sell)" onclick="logout(); toggleDropdown();">Log Out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- AUTH MODAL -->
+    <div id="auth-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
+        <div style="background:var(--bg-panel); padding:3rem; border-radius:12px; border:1px solid var(--border-subtle); width:420px; text-align:center;">
+            <h2 style="margin-bottom:1.5rem;">Access TROY Platform</h2>
+            <input type="email" id="auth-user" placeholder="Email Address" style="width:100%; padding:0.8rem; margin-bottom:1rem; background:var(--bg-base); border:1px solid var(--border-subtle); color:white; border-radius:6px; outline:none;">
+            <input type="password" id="auth-pass" placeholder="Password" style="width:100%; padding:0.8rem; margin-bottom:0.5rem; background:var(--bg-base); border:1px solid var(--border-subtle); color:white; border-radius:6px; outline:none;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.5rem; text-align: left; line-height:1.4;">
+                Password must be at least 8 characters, containing an uppercase, lowercase, number, and special character.
+            </div>
+            <div style="display:flex; gap:1rem;">
+                <button onclick="handleAuth('login')" style="flex:1; padding:0.8rem; background:var(--text-pure); color:var(--bg-base); border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Log In</button>
+                <button onclick="handleAuth('register')" style="flex:1; padding:0.8rem; background:var(--bg-base); color:var(--text-pure); border:1px solid var(--text-pure); border-radius:6px; font-weight:bold; cursor:pointer;">Register</button>
+            </div>
+            <button onclick="document.getElementById('auth-modal').style.display='none'" style="margin-top:1.5rem; background:none; border:none; color:var(--text-muted); cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- VIEW 1: HOME -->
+    <main id="home-view" class="view-section" style="display:block;">
+        <div class="hero-section">
+            <h2 class="hero-title">TRADE LIKE AN INSIDER</h2>
+            <div class="main-search-container">
+                <input type="text" class="main-search-input" id="mainInput" placeholder="Search tickers, parties, lawmakers..." onkeydown="if(event.key === 'Enter') executeScan('mainInput')">
+                <button class="main-search-btn" onclick="executeScan('mainInput')">SCAN</button>
+            </div>
+            <div class="pill-grid">
+                <div class="pill-card" onclick="openPoliticalInsidersView()">POLITICIANS</div>
+                <div class="pill-card" onclick="openCorporateInsidersView()">INSIDERS</div>
+                <div class="pill-card" onclick="openHedgeFundsView()">HEDGE FUNDS</div>
+                <div class="pill-card" onclick="loadNews()">KEY MOVEMENTS</div>
+                <div class="pill-card" onclick="loadPredictions('Politics')">MARKET SENTIMENT</div>
+                <div class="pill-card" onclick="loadNews()">MACRO DATA</div>
+            </div>
+        </div>
+
+        <div style="max-width: 1200px; margin: 0 auto 10rem auto; padding: 0 2.5rem;">
+            <div class="home-section-title">Latest Intelligence</div>
+            <div class="grid-container" style="margin-top: 0;" id="home-news-grid">
+                <p style="color:var(--text-muted); grid-column:1/-1; text-align:center;">Loading latest intelligence briefings...</p>
+            </div>
+        </div>
+
+        <div style="max-width: 900px; margin: 0 auto 8rem auto; padding: 0 2.5rem; text-align: center;">
+            <div class="home-section-title">The Asymmetric Edge</div>
+            <h2 style="font-size: 2.2rem; font-weight: 600; margin-bottom: 2rem; line-height: 1.3;">
+                While the media directs public attention toward partisan noise, insiders are quietly extracting billions.
+            </h2>
+            <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                The modern financial ecosystem is fundamentally unbalanced. Lawmakers sit on regulatory committees dictating the future of defense, tech, and healthcare, while simultaneously executing high-conviction trades in those exact sectors. Wall Street institutions exploit backdoor lobbying and opaque corporate PAC money to guarantee alpha generation. We are told to look the other way.
+            </p>
+            <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.8;">
+                TROY was engineered to level the playing field. By directly ingesting raw, unstructured government data, prediction market order books, and corporate disclosures, our quantitative models strip away the distraction. We score political corruption, map lobbying connections, and expose the exact cross-asset conviction signals driving institutional returns. 
+            </p>
+            <p style="color: var(--text-pure); font-size: 1.1rem; font-weight: 600; margin-top: 2.5rem; letter-spacing: 0.05em;">
+                Stop trading on the news. Start trading on the disclosure.
+            </p>
+        </div>
+    </main>
+
+    <!-- VIEW 2: DASHBOARD -->
+    <main id="dashboard-view" class="view-section">
+        <div id="status-message"></div>
+        <h1 class="ticker-header" id="display-ticker"></h1>
+        <div class="metrics-grid">
+            <div class="metric-card"><div class="metric-title">CURRENT PRICE</div><div class="metric-value" id="val-price">--</div></div>
+            <div class="metric-card"><div class="metric-title">DAILY CHANGE</div><div class="metric-value" id="val-change">--</div></div>
+            <div class="metric-card"><div class="metric-title">ALPHA RATING (1-10)</div><div class="metric-value" id="val-rating">--</div></div>
+            <div class="metric-card"><div class="metric-title">ALGORITHMIC SIGNAL</div><div class="metric-value" id="val-signal">--</div></div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Date Disclosed</th><th>Entity Profile</th><th>Position</th><th>Est. Volume</th></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- VIEW 3: PROFILE (INSIDER/POLITICIAN/FUND) -->
+    <main id="profile-view" class="view-section">
+        <div class="profile-header-container">
+            <div class="profile-header-left">
+                <img id="prof-image" src="" alt="Avatar" class="profile-avatar" onerror="this.src='https://ui-avatars.com/api/?name=User&background=121214&color=ffffff'">
+                <div>
+                    <div class="profile-name-row">
+                        <h1 class="profile-name" id="prof-name">Loading...</h1>
+                        <span id="prof-party" class="party-badge" style="display:none;"></span>
+                        <span id="prof-corruption" style="background:#ef4444; color:white; padding:0.2rem 0.6rem; border-radius:4px; font-size:0.75rem; font-weight:700; margin-left:1rem; display:none;">Corruption Risk: -- / 10</span>
+                    </div>
+                    <div class="profile-role" id="prof-role">--</div>
+                </div>
+            </div>
+            <button id="follow-btn-main" class="follow-btn" onclick="toggleFollow()">+ Follow Alerts</button>
+        </div>
+        
+        <p class="profile-bio" id="prof-bio"></p>
+
+        <!-- DYNAMIC TOP METRICS GRID -->
+        <div class="metrics-grid" id="prof-top-metrics">
+            <div class="metric-card">
+                <div class="metric-title">TOTAL TRADED VOLUME</div>
+                <div class="metric-value" id="prof-volume">--</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">EST. DAILY P&L CHANGE</div>
+                <div class="metric-value" id="prof-daily-pl">--</div>
+            </div>
+            <div class="metric-card" id="prof-pac-card">
+                <div class="metric-title">ESTIMATED PAC / LOBBYING MONEY</div>
+                <div class="metric-value" id="prof-pac" style="color:var(--accent-sell);">--</div>
+            </div>
+            <div class="metric-card" id="prof-aum-card" style="display:none;">
+                <div class="metric-title">ASSETS UNDER MANAGEMENT (AUM)</div>
+                <div class="metric-value" id="prof-aum">--</div>
+            </div>
+            <div class="metric-card" id="prof-spy-card" style="display:none;">
+                <div class="metric-title">1YR VS S&P 500</div>
+                <div class="metric-value" id="prof-vs-spy">--</div>
+            </div>
+            <div class="metric-card" id="prof-mom-card" style="display:none;">
+                <div class="metric-title">SECTOR MOMENTUM</div>
+                <div class="metric-value" id="prof-momentum">--</div>
+            </div>
+        </div>
+
+        <div class="profile-grid-layout">
+            <div class="chart-box" style="margin-bottom:0;">
+                <h3 class="metric-title" style="margin-bottom: 1.5rem; width:100%; text-align:left;">TOP TRADED ASSETS</h3>
+                <div style="width: 100%; height: 250px; display:flex; justify-content:center;">
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-box" style="margin-bottom:0;">
+                <div style="display:flex; justify-content:space-between; width:100%; margin-bottom: 1.5rem;">
+                    <h3 class="metric-title">% PORTFOLIO RETURN VS. S&P 500 BENCHMARK</h3>
+                    <div>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">1M</button>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">6M</button>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem;" onclick="alert('Timeline filter applied.')">1Y</button>
+                    </div>
+                </div>
+                <div style="width: 100%; height: 250px;">
+                    <canvas id="equityLineChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="metrics-grid" id="prof-bottom-tabs" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="metric-card">
+                <h3 class="metric-title" style="margin-bottom: 1rem;">TOP TRADED SECTORS</h3>
+                <ul id="prof-sectors" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
+            </div>
+            <div class="metric-card">
+                <h3 class="metric-title" style="margin-bottom: 1rem;">COMMITTEE MEMBERSHIPS</h3>
+                <ul id="prof-committees" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
+            </div>
+            <div class="metric-card">
+                <h3 class="metric-title" style="margin-bottom: 1rem;">NOTABLE LOBBYING CONNECTIONS</h3>
+                <ul id="prof-lobbying" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
+            </div>
+        </div>
+
+        <h3 class="metric-title" style="margin-top: 3rem; margin-bottom: 1rem;">RECENT DISCLOSURES</h3>
+        <div class="table-container" style="margin-bottom: 4rem;">
+            <table>
+                <thead><tr><th>Date</th><th>Ticker</th><th>Position</th><th>Volume</th></tr></thead>
+                <tbody id="prof-recent-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- VIEW 4: WATCHLIST -->
+    <main id="watchlist-view" class="view-section">
+        <h1 class="ticker-header">Your Intelligence Feed</h1>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Date</th><th>Ticker</th><th>Entity</th><th>Position</th><th>Est. Volume</th></tr></thead>
+                <tbody id="watchlist-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- VIEW 6: GENERAL INSIDERS (Search Page) -->
+    <main id="insiders-view" class="view-section">
+        <h1 class="ticker-header">Insider & Politician Database</h1>
+        <div class="main-search-container" style="max-width: 1000px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="in-name" placeholder="Name" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <select id="in-party" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+                <option value="">Any Party</option><option value="Democrat">Democrat</option><option value="Republican">Republican</option>
+            </select>
+            <input type="text" id="in-state" placeholder="State (e.g. CA)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 150px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <input type="text" id="in-ticker" placeholder="Ticker" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 120px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <button class="main-search-btn" onclick="loadInsiders()">SEARCH</button>
+        </div>
+
+        <h3 class="metric-title" style="margin-bottom: 1rem;">DIRECTORY RESULTS</h3>
+        <div id="insiders-grid" class="grid-6-col" style="margin-top: 0; margin-bottom: 4rem;"></div>
+    </main>
+
+    <!-- VIEW 6A: POLITICAL INSIDERS -->
+    <main id="political-insiders-view" class="view-section">
+        <h1 class="ticker-header">Political Insiders</h1>
+        <h2 style="font-size: 1.4rem; font-weight: 500; color: var(--text-muted); margin-bottom: 2rem;">Enter the politicians name to reveal their portfolio, net worth and more</h2>
+        <div class="main-search-container" style="max-width: 800px; margin: 0 auto 3rem auto; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="pol-in-name" placeholder="Search Politician Name..." class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name', true)">
+            <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name', true)">SEARCH</button>
+        </div>
+        <div id="pol-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
+    </main>
+
+    <!-- VIEW 6B: CORPORATE INSIDERS -->
+    <main id="corporate-insiders-view" class="view-section">
+        <h1 class="ticker-header">Corporate Insiders Database</h1>
+        <h2 style="font-size: 1.4rem; font-weight: 500; color: var(--text-muted); margin-bottom: 2rem;">Search C-Suite executives to track inside accumulation and distribution flows</h2>
+        <div class="main-search-container" style="max-width: 800px; margin: 0 auto 3rem auto; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="corp-in-name" placeholder="Search Executive Name..." class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') fetchAndRenderSpecificRole('Executive', 'corp-insiders-grid', 'corp-in-name')">
+            <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('Executive', 'corp-insiders-grid', 'corp-in-name')">SEARCH</button>
+        </div>
+        <div id="corp-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
+    </main>
+
+    <!-- VIEW 6C: HEDGE FUNDS -->
+    <main id="hedge-funds-view" class="view-section">
+        <h1 class="ticker-header">Macro Hedge Funds & Institutional Managers</h1>
+        <h2 style="font-size: 1.4rem; font-weight: 500; color: var(--text-muted); margin-bottom: 2rem;">Discover algorithmic sentiment derived from deep SEC 13F filing extraction</h2>
+        <div class="main-search-container" style="max-width: 800px; margin: 0 auto 3rem auto; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="hf-in-name" placeholder="Search Fund or Manager Name..." class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') fetchAndRenderSpecificRole('Fund', 'hf-insiders-grid', 'hf-in-name')">
+            <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('Fund', 'hf-insiders-grid', 'hf-in-name')">SEARCH</button>
+        </div>
+        <div id="hf-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
+    </main>
+
+    <!-- VIEW 7: NEWS -->
+    <main id="news-view" class="view-section">
+        <h1 class="ticker-header">Live Market Intelligence</h1>
+        <div id="news-grid" class="grid-container"></div>
+    </main>
+
+    <!-- VIEW 8: PREDICTIONS (Polymarket Gamma API Integration) -->
+    <main id="predictions-view" class="view-section">
+        <h1 class="ticker-header">Global Prediction Markets</h1>
+        <p style="color:var(--text-muted); margin-bottom:2rem;">Live implied probability metrics mapped directly from Polymarket order books.</p>
+        
+        <div class="filter-bar" style="margin-bottom: 2rem;">
+            <button class="filter-btn active" id="btn-pred-Politics" onclick="loadPredictions('Politics')">Politics</button>
+            <button class="filter-btn" id="btn-pred-Economy" onclick="loadPredictions('Economy')">Economy</button>
+            <button class="filter-btn" id="btn-pred-Finance" onclick="loadPredictions('Finance')">Finance</button>
+        </div>
+
+        <div id="predictions-grid" class="grid-container"></div>
+    </main>
+
+    <!-- VIEW 9: COMPANIES (Search Page) -->
+    <main id="companies-view" class="view-section">
+        <h1 class="ticker-header">Corporate Database</h1>
+        <p style="color:var(--text-muted); margin-bottom:2rem;">Search publicly traded companies to view corporate intelligence, price action, and fundamental metrics.</p>
+        <div class="main-search-container" style="max-width: 800px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="comp-ticker" placeholder="Enter Ticker (e.g. AAPL)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); text-transform: uppercase;" onkeydown="if(event.key === 'Enter') openCompanyProfile(document.getElementById('comp-ticker').value)">
+            <button class="main-search-btn" onclick="openCompanyProfile(document.getElementById('comp-ticker').value)">SEARCH</button>
+        </div>
+    </main>
+
+    <!-- VIEW 10: COMPANY PROFILE -->
+    <main id="company-profile-view" class="view-section">
+        <button onclick="switchView('companies-view')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; margin-bottom: 2rem; font-family:'Inter'; font-weight:600; font-size:0.9rem;">&larr; Back to Corporate Search</button>
+        
+        <div class="profile-header-container">
+            <div class="profile-header-left">
+                <div style="width:120px; height:120px; border-radius:12px; background-color:var(--bg-panel); border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:bold; color:var(--text-muted);" id="comp-logo"></div>
+                <div>
+                    <div class="profile-name-row">
+                        <h1 class="profile-name" id="comp-name">Loading...</h1>
+                        <span id="comp-ticker-badge" style="background:var(--accent-brand); color:white; padding:0.2rem 0.6rem; border-radius:4px; font-size:0.85rem; font-weight:700; margin-left:1rem;"></span>
+                    </div>
+                    <div class="profile-role" id="comp-sector">--</div>
+                </div>
+            </div>
+            <button class="follow-btn" onclick="executeScan(document.getElementById('comp-ticker-badge').textContent)">View Insider Flows &rarr;</button>
+        </div>
+        
+        <p class="profile-bio" id="comp-summary" style="font-size: 1.05rem; line-height: 1.7; max-width: 1000px; margin-bottom: 3rem;"></p>
+
+        <!-- STREAMLINED VALUATION CARDS -->
+        <h3 class="metric-title" style="margin-top: 2rem; margin-bottom: 1rem;">QUANTITATIVE VALUATION MODEL</h3>
+        <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="metric-card" style="border: 1px solid var(--accent-brand);">
+                <div class="metric-title" style="color:var(--accent-brand);">ALPHA CONVICTION TARGET</div>
+                <div class="metric-value" id="val-alpha-price">--</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">IMPLIED UPSIDE / DOWNSIDE</div>
+                <div class="metric-value" id="val-upside">--</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">P/E RATIO (TRAILING)</div>
+                <div class="metric-value" id="val-pe-ratio">--</div>
+            </div>
+        </div>
+
+        <h3 class="metric-title" style="margin-top: 3rem; margin-bottom: 1rem;">CORPORATE FUNDAMENTALS</h3>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">EMPLOYEES</div>
+                <div class="metric-value" id="comp-employees">--</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">YEAR FOUNDED</div>
+                <div class="metric-value" id="comp-founded">--</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">DIVIDEND YIELD</div>
+                <div class="metric-value" id="comp-dividend">--</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">52-WEEK HIGH / LOW</div>
+                <div class="metric-value" id="comp-highlow" style="font-size: 1.4rem;">--</div>
+            </div>
+        </div>
+
+        <div class="chart-box" style="margin-top: 2rem; width: 100%;">
+            <div style="display:flex; justify-content:space-between; width:100%; margin-bottom: 1.5rem;">
+                <h3 class="metric-title">1-YEAR HISTORICAL PRICE ACTION</h3>
+            </div>
+            <div style="width: 100%; height: 350px;">
+                <canvas id="companyPriceChart"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <!-- VIEW 11: USER PORTFOLIO DASHBOARD -->
+    <main id="portfolio-view" class="view-section">
+        <h1 class="ticker-header">Personal Quantitative Holdings</h1>
+        <p style="color:var(--text-muted); margin-bottom:2rem;">Track live valuations, daily price performance, and TROY systematic target metrics across your equity portfolio.</p>
+        
+        <div class="main-search-container" style="max-width: 800px; margin-bottom: 2.5rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="port-ticker-input" placeholder="Enter Ticker Symbol (e.g. NVDA, AAPL)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); text-transform: uppercase;" onkeydown="if(event.key === 'Enter') addPortfolioTicker()">
+            <button class="main-search-btn" onclick="addPortfolioTicker()">ADD TO PORTFOLIO</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Price</th>
+                        <th>Day % Change</th>
+                        <th>Alpha Target</th>
+                        <th>Implied Upside</th>
+                        <th>P/E Ratio</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="portfolio-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- VIEW 12: RANKINGS ENGINE -->
+    <main id="rankings-view" class="view-section">
+        <h1 class="ticker-header">Top Conviction Rankings</h1>
+        <p style="color:var(--text-muted); margin-bottom:2rem;">The highest-rated active "Strong Buy" equities calculated autonomously via tracked lawmaker and insider capital flows.</p>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Company</th>
+                        <th>Price</th>
+                        <th>Alpha Rating</th>
+                        <th>Signal</th>
+                        <th>Alpha Target</th>
+                        <th>Implied Upside</th>
+                        <th>24h Change</th>
+                    </tr>
+                </thead>
+                <tbody id="rankings-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- NOTIFICATION CONTAINER -->
+    <div id="toast-container"></div>
+
+    <script>
+        let lineChartInstance = null; 
+        let pieChartInstance = null;
+        let compChartInstance = null;
+        let currentUser = localStorage.getItem('troy_user');
+        let eventSource = null;
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
+            if(viewId !== 'home-view') { document.getElementById('home-view').style.display = 'none'; }
+            document.getElementById(viewId).style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleDropdown() {
+            const dd = document.getElementById('user-dropdown');
+            dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function renderAuthUI() {
+            if (currentUser) {
+                document.getElementById('nav-auth-btn').style.display = 'none';
+                document.getElementById('user-menu-container').style.display = 'block';
+                document.getElementById('dropdown-email').textContent = currentUser;
+                connectNotifications(currentUser);
+            } else {
+                document.getElementById('nav-auth-btn').style.display = 'block';
+                document.getElementById('user-menu-container').style.display = 'none';
+                if (eventSource) { eventSource.close(); eventSource = null; }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('troy_user');
+            currentUser = null;
+            renderAuthUI();
+            switchView('home-view');
+        }
+
+        renderAuthUI();
+        
+        async function initHomeNews() {
+            const grid = document.getElementById('home-news-grid');
+            try {
+                const res = await fetch('http://localhost:8000/api/news');
+                const data = await res.json();
+                grid.innerHTML = '';
+                const topArticles = data.articles.slice(0, 3);
+                topArticles.forEach(article => {
+                    const imgHtml = article.image_url ? `<img src="${article.image_url}" class="news-card-img" alt="Thumbnail" onerror="this.src='https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=600'">` : '';
+                    grid.innerHTML += `
+                        <div class="news-card" onclick="window.open('${article.link}', '_blank')">
+                            ${imgHtml}
+                            <div class="news-card-content">
+                                <div class="news-meta">${article.source} | ${article.pubDate}</div>
+                                <div class="news-title" style="margin-top:0.5rem;">${article.title}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                grid.innerHTML = '<p style="color:var(--accent-sell); grid-column:1/-1; text-align:center;">Failed to connect to RSS aggregator.</p>';
+            }
+        }
+        
+        initHomeNews();
+
+        function connectNotifications(username) {
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource(`http://localhost:8000/api/stream/${username}`);
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                showToast(data.title, data.message);
+            };
+        }
+
+        function showToast(title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${message}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 5000);
+        }
+
+        async function handleAuth(action) {
+            const user = document.getElementById('auth-user').value.trim();
+            const pass = document.getElementById('auth-pass').value.trim();
+            if (!user || !pass) return alert("Please enter valid credentials.");
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/${action}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('troy_user', user);
+                    currentUser = user;
+                    renderAuthUI();
+                    document.getElementById('auth-modal').style.display = 'none';
+                    alert(`Success! Welcome to TROY, ${user}.`);
+                } else { alert(data.detail); }
+            } catch (err) { console.error("Auth Error:", err); }
+        }
+
+        async function executeScan(inputId) {
+            let ticker = "";
+            if (document.getElementById(inputId)) {
+                ticker = document.getElementById(inputId).value.trim().toUpperCase();
+            } else {
+                ticker = inputId; 
+            }
+            if (!ticker) return;
+
+            switchView('dashboard-view');
+            const statusMsg = document.getElementById('status-message');
+            const tbody = document.getElementById('table-body');
+            
+            document.getElementById('display-ticker').innerHTML = `Scanning <span>(${ticker})</span>...`;
+            ['val-price', 'val-change', 'val-rating', 'val-signal'].forEach(id => document.getElementById(id).textContent = '--');
+            tbody.innerHTML = '';
+            
+            statusMsg.style.color = 'var(--text-pure)';
+            statusMsg.textContent = `[+] Executing institutional scan for $${ticker}...`;
+
+            try {
+                const response = await fetch(`http://localhost:8000/api/scan/${ticker}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                document.getElementById('display-ticker').innerHTML = `${data.company_name} <span>(${data.ticker})</span>`;
+                document.getElementById('val-price').textContent = data.summary.current_price > 0 ? `$${data.summary.current_price.toFixed(2)}` : 'N/A';
+                
+                const changeEl = document.getElementById('val-change');
+                const changeVal = data.summary.daily_change;
+                changeEl.textContent = data.summary.current_price > 0 ? `${changeVal > 0 ? '+' : ''}${changeVal.toFixed(2)}%` : 'N/A';
+                changeEl.className = `metric-value ${changeVal > 0 ? 'signal-buy' : changeVal < 0 ? 'signal-sell' : 'signal-neutral'}`;
+
+                document.getElementById('val-rating').textContent = `${data.summary.normalized_rating} / 10.0`;
+                const signalEl = document.getElementById('val-signal');
+                signalEl.textContent = data.summary.algorithmic_signal;
+                signalEl.className = `metric-value ${data.summary.algorithmic_signal.includes('BUY') ? 'signal-buy' : data.summary.algorithmic_signal.includes('SHORT') ? 'signal-sell' : 'signal-neutral'}`;
+
+                data.feed.forEach(row => {
+                    const tr = document.createElement('tr');
+                    let cleanName = row.Entity.replace('CONGRESS: ', '').split('(')[0].trim();
+                    tr.innerHTML = `
+                        <td>${row.Date_Str}</td>
+                        <td><a class="entity-link" onclick="openProfile('${cleanName}')">${cleanName}</a></td>
+                        <td><span class="pos-badge ${row.Position === 'BUY' ? 'bg-buy' : 'bg-sell'}">${row.Position}</span></td>
+                        <td>${row.Volume}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                statusMsg.textContent = 'Execution complete. Live feed active.';
+                statusMsg.style.color = 'var(--text-muted)';
+            } catch (error) {
+                console.error("Scan Error:", error);
+                statusMsg.style.color = 'var(--accent-sell)';
+                statusMsg.textContent = `[-] Operational Failure: Zero records returned or engine offline.`;
+            }
+        }
+
+        async function openCompanyProfile(ticker) {
+            ticker = ticker.trim().toUpperCase();
+            if (!ticker) return;
+
+            switchView('company-profile-view');
+            document.getElementById('comp-name').textContent = "Retrieving corporate data...";
+            document.getElementById('comp-summary').textContent = "Parsing SEC filings & fundamental datasets...";
+            document.getElementById('comp-logo').textContent = ticker;
+            
+            ['comp-ticker-badge', 'comp-sector', 'comp-employees', 'comp-founded', 'comp-dividend', 'comp-highlow', 'val-alpha-price', 'val-upside', 'val-pe-ratio'].forEach(id => document.getElementById(id).textContent = '--');
+            if (compChartInstance) { compChartInstance.destroy(); }
+
+            try {
+                const response = await fetch(`http://localhost:8000/api/company/${ticker}`);
+                if (!response.ok) throw new Error("Company not found.");
+                const data = await response.json();
+
+                document.getElementById('comp-name').textContent = data.name;
+                document.getElementById('comp-ticker-badge').textContent = data.ticker;
+                document.getElementById('comp-sector').textContent = data.sector;
+                document.getElementById('comp-summary').textContent = data.summary;
+                
+                document.getElementById('comp-employees').textContent = data.employees;
+                document.getElementById('comp-founded').textContent = data.founded;
+                document.getElementById('comp-dividend').textContent = data.dividend_yield;
+                document.getElementById('comp-highlow').textContent = `${data.high_52} / ${data.low_52}`;
+
+                // Simplified Valuation Card Outputs
+                document.getElementById('val-alpha-price').textContent = `$${data.valuation.alpha_target_price.toFixed(2)}`;
+                
+                const upsideEl = document.getElementById('val-upside');
+                const upsideVal = data.valuation.implied_upside_pct;
+                upsideEl.textContent = `${upsideVal > 0 ? '+' : ''}${upsideVal.toFixed(2)}%`;
+                upsideEl.className = `metric-value ${upsideVal > 0 ? 'signal-buy' : upsideVal < 0 ? 'signal-sell' : 'signal-neutral'}`;
+
+                document.getElementById('val-pe-ratio').textContent = data.valuation.pe_ratio;
+
+                renderCompanyChart(data.price_history);
+            } catch (error) {
+                document.getElementById('comp-name').textContent = "DATA UNAVAILABLE";
+                document.getElementById('comp-summary').textContent = "Failed to pull company profile for " + ticker + ".";
+            }
+        }
+
+        function renderCompanyChart(historyData) {
+            const ctx = document.getElementById('companyPriceChart').getContext('2d');
+            if (compChartInstance) { compChartInstance.destroy(); }
+            compChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: historyData.labels,
+                    datasets: [{
+                        label: 'Closing Price ($)',
+                        data: historyData.prices,
+                        borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2, fill: true, tension: 0.1, pointRadius: 0, pointHoverRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 12 }, grid: { display: false } },
+                        y: { ticks: { color: '#a1a1aa', callback: function(value) { return "$" + value; } }, grid: { color: '#27272a' } }
+                    }
+                }
+            });
+        }
+
+        async function openProfile(entityName) {
+            switchView('profile-view');
+            document.getElementById('prof-name').textContent = entityName;
+            
+            try {
+                const response = await fetch(`http://localhost:8000/api/profile/${encodeURIComponent(entityName)}`);
+                const data = await response.json();
+
+                document.getElementById('prof-role').textContent = data.role;
+                document.getElementById('prof-bio').textContent = data.bio;
+                document.getElementById('prof-image').src = data.image_url;
+                
+                const pb = document.getElementById('prof-party');
+                if (data.party && data.party !== "Unknown") {
+                    pb.style.display = 'inline-block'; pb.textContent = data.party;
+                    pb.className = `party-badge ${data.party === 'Democrat' ? 'party-democrat' : 'party-republican'}`;
+                } else { pb.style.display = 'none'; }
+
+                let fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+                
+                document.getElementById('prof-volume').textContent = fmt.format(data.tracked_volume);
+                
+                const pl = document.getElementById('prof-daily-pl');
+                pl.textContent = `${data.daily_change_value > 0 ? '+' : ''}${fmt.format(data.daily_change_value)}`;
+                pl.style.color = data.daily_change_value >= 0 ? 'var(--accent-buy)' : 'var(--accent-sell)';
+                
+                const roleLower = data.role.toLowerCase();
+                const isPolitician = roleLower.includes('senat') || roleLower.includes('rep') || roleLower.includes('congress') || (data.party && data.party !== 'Unknown');
+                const isFund = roleLower.includes('fund') || roleLower.includes('institutional');
+                
+                const corrEl = document.getElementById('prof-corruption');
+                if (corrEl) {
+                    if (isPolitician) {
+                        corrEl.textContent = `Corruption Risk: ${data.corruption_score} / 10`;
+                        corrEl.style.display = 'inline-block';
+                    } else {
+                        corrEl.style.display = 'none';
+                    }
+                }
+
+                const pacCard = document.getElementById('prof-pac-card');
+                if (pacCard) pacCard.style.display = isPolitician ? 'block' : 'none';
+
+                const aumCard = document.getElementById('prof-aum-card');
+                if (aumCard) aumCard.style.display = isFund ? 'block' : 'none';
+                
+                const spyCard = document.getElementById('prof-spy-card');
+                if (spyCard) spyCard.style.display = isFund ? 'block' : 'none';
+                
+                const momCard = document.getElementById('prof-mom-card');
+                if (momCard) momCard.style.display = isFund ? 'block' : 'none';
+
+                const bottomTabs = document.getElementById('prof-bottom-tabs');
+                if (bottomTabs) bottomTabs.style.display = isPolitician ? 'grid' : 'none';
+                
+                if (isPolitician) {
+                    document.getElementById('prof-pac').textContent = data.pac_money;
+                    const ulSectors = document.getElementById('prof-sectors');
+                    ulSectors.innerHTML = '';
+                    data.top_sectors.forEach(s => ulSectors.innerHTML += `<li>${s}</li>`);
+                    
+                    const ulCommittees = document.getElementById('prof-committees');
+                    ulCommittees.innerHTML = '';
+                    data.committees.forEach(c => ulCommittees.innerHTML += `<li>${c}</li>`);
+
+                    const ulLobby = document.getElementById('prof-lobbying');
+                    ulLobby.innerHTML = '';
+                    data.lobbying_connections.forEach(l => ulLobby.innerHTML += `<li>${l}</li>`);
+                } else if (isFund) {
+                    document.getElementById('prof-aum').textContent = data.aum;
+                    
+                    const spyEl = document.getElementById('prof-vs-spy');
+                    spyEl.textContent = data.vs_spy;
+                    spyEl.className = `metric-value ${data.vs_spy.includes('+') ? 'signal-buy' : 'signal-sell'}`;
+                    
+                    const momEl = document.getElementById('prof-momentum');
+                    momEl.textContent = data.sector_momentum;
+                    momEl.className = `metric-value ${data.sector_momentum.includes('+') ? 'signal-buy' : 'signal-sell'}`;
+                }
+
+                renderPieChart(data.top_holdings);
+                renderLineChart(data.portfolio_history);
+
+                const recentBody = document.getElementById('prof-recent-body');
+                if (recentBody) {
+                    recentBody.innerHTML = '';
+                    if (data.recent_trades && data.recent_trades.length > 0) {
+                        data.recent_trades.forEach(rt => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${rt.date}</td>
+                                <td style="font-weight:700;"><a class="entity-link" onclick="openCompanyProfile('${rt.ticker}')">${rt.ticker}</a></td>
+                                <td><span class="pos-badge ${rt.position === 'BUY' ? 'bg-buy' : 'bg-sell'}">${rt.position}</span></td>
+                                <td>${rt.volume}</td>
+                            `;
+                            recentBody.appendChild(tr);
+                        });
+                    } else {
+                        recentBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:2rem;">No recent disclosures on file.</td></tr>';
+                    }
+                }
+            } catch (error) {}
+        }
+
+        function renderPieChart(holdingsData) {
+            const ctx = document.getElementById('portfolioChart').getContext('2d');
+            if (pieChartInstance) { pieChartInstance.destroy(); } 
+            
+            const labels = Object.keys(holdingsData);
+            const values = Object.values(holdingsData);
+
+            if (labels.length === 0) {
+                labels.push("No Active Holdings");
+                values.push(1);
+            }
+
+            pieChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function renderLineChart(historyData) {
+            const ctx = document.getElementById('equityLineChart').getContext('2d');
+            if (lineChartInstance) { lineChartInstance.destroy(); }
+            lineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: historyData.labels.length ? historyData.labels : ['No Disclosures'],
+                    datasets: [
+                        {
+                            label: 'Portfolio Return (%)',
+                            data: historyData.portfolio_returns.length ? historyData.portfolio_returns : [0],
+                            borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2, fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: '#10b981'
+                        },
+                        {
+                            label: 'S&P 500 Benchmark (%)',
+                            data: historyData.spy_returns.length ? historyData.spy_returns : [0],
+                            borderColor: '#a1a1aa', backgroundColor: 'transparent',
+                            borderWidth: 2, fill: false, tension: 0.35, borderDash: [5, 5], pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'top', labels: { color: '#a1a1aa', font: { family: 'Inter' } } } 
+                    },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa' }, grid: { color: '#27272a' } },
+                        y: { 
+                            ticks: { 
+                                color: '#a1a1aa',
+                                callback: function(value) { return value + "%"; }
+                            }, 
+                            grid: { color: '#27272a' } 
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadNews() {
+            switchView('news-view');
+            const grid = document.getElementById('news-grid');
+            grid.innerHTML = '<p>Loading live Financial Times RSS feed...</p>';
+            try {
+                const res = await fetch('http://localhost:8000/api/news');
+                const data = await res.json();
+                grid.innerHTML = '';
+                data.articles.forEach(article => {
+                    const imgHtml = article.image_url ? `<img src="${article.image_url}" class="news-card-img" alt="Thumbnail" onerror="this.src='https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=600'">` : '';
+                    grid.innerHTML += `
+                        <div class="news-card" onclick="window.open('${article.link}', '_blank')">
+                            ${imgHtml}
+                            <div class="news-card-content">
+                                <div class="news-meta">${article.source} | ${article.pubDate}</div>
+                                <div class="news-title" style="margin-top:0.5rem;">${article.title}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {}
+        }
+
+        async function loadRankings() {
+            switchView('rankings-view');
+            const tbody = document.getElementById('rankings-body');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Calculating real-time top conviction equities...</td></tr>';
+            try {
+                const res = await fetch('http://localhost:8000/api/rankings');
+                const data = await res.json();
+                tbody.innerHTML = '';
+                
+                if (!data.rankings || data.rankings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No active signals met the criteria.</td></tr>';
+                    return;
+                }
+                
+                let rank = 1;
+                data.rankings.forEach(item => {
+                    const tr = document.createElement('tr');
+                    
+                    const changeVal = item.daily_change;
+                    const changeClass = changeVal > 0 ? 'signal-buy' : changeVal < 0 ? 'signal-sell' : 'signal-neutral';
+                    const changePrefix = changeVal > 0 ? '+' : '';
+                    
+                    const upsideVal = item.upside;
+                    const upsideClass = upsideVal > 0 ? 'signal-buy' : upsideVal < 0 ? 'signal-sell' : 'signal-neutral';
+                    const upsidePrefix = upsideVal > 0 ? '+' : '';
+
+                    tr.innerHTML = `
+                        <td style="font-weight:700; color:var(--text-muted);">#${rank++}</td>
+                        <td style="font-weight:700;"><a class="entity-link" onclick="openCompanyProfile('${item.ticker}')">${item.company_name} <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">$${item.ticker}</span></a></td>
+                        <td>$${item.price.toFixed(2)}</td>
+                        <td style="color:var(--accent-buy); font-weight:700;">${item.alpha_rating.toFixed(1)} / 10.0</td>
+                        <td><span class="pos-badge bg-buy">STRONG BUY</span></td>
+                        <td style="font-weight:700; color:var(--accent-brand);">$${item.target_price.toFixed(2)}</td>
+                        <td class="${upsideClass}">${upsidePrefix}${upsideVal.toFixed(2)}%</td>
+                        <td class="${changeClass}">${changePrefix}${changeVal.toFixed(2)}%</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--accent-sell);">Failed to load rankings matrix.</td></tr>';
+            }
+        }
+
+        async function openPoliticalInsidersView() {
+            switchView('political-insiders-view');
+            document.getElementById('pol-in-name').value = '';
+            await fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name', true);
+        }
+
+        async function openCorporateInsidersView() {
+            switchView('corporate-insiders-view');
+            document.getElementById('corp-in-name').value = '';
+            await fetchAndRenderSpecificRole('Executive', 'corp-insiders-grid', 'corp-in-name');
+        }
+
+        async function openHedgeFundsView() {
+            switchView('hedge-funds-view');
+            document.getElementById('hf-in-name').value = '';
+            await fetchAndRenderSpecificRole('Fund', 'hf-insiders-grid', 'hf-in-name');
+        }
+
+        async function fetchAndRenderSpecificRole(roleKeyword, gridId, inputId, isPolitician = false) {
+            const grid = document.getElementById(gridId);
+            const n = document.getElementById(inputId).value || "";
+            grid.innerHTML = '<p>Querying directory...</p>';
+            
+            try {
+                const res = await fetch(`http://localhost:8000/api/insiders?name=${n}&role=${roleKeyword}`);
+                const data = await res.json();
+                grid.innerHTML = '';
+                
+                let renderCount = 0;
+                data.insiders.forEach(insider => {
+                    renderCount++;
+                    let extraInfo = '';
+                    if (isPolitician) {
+                        let retColor = insider.return_1yr.includes('-') ? 'var(--accent-sell)' : 'var(--accent-buy)';
+                        extraInfo = `<p style="color:${retColor}; font-weight:700; margin-top:0.5rem; font-size:0.95rem;">${insider.return_1yr} 1YR Return</p>`;
+                    } else if (roleKeyword === 'Fund' || roleKeyword === 'Institutional') {
+                        let retColor = insider.return_1yr.includes('-') ? 'var(--accent-sell)' : 'var(--accent-buy)';
+                        extraInfo = `<p style="color:var(--text-pure); font-weight:700; margin-top:0.5rem; font-size:0.95rem;">${insider.aum}</p>
+                                     <p style="color:${retColor}; font-weight:700; font-size:0.8rem;">${insider.return_1yr} 1YR</p>`;
+                    } else {
+                        extraInfo = `<p>${insider.role}</p>`;
+                    }
+
+                    grid.innerHTML += `
+                        <div class="insider-card" onclick="openProfile('${insider.name}')">
+                            <img src="${insider.image_url}" onerror="this.src='https://ui-avatars.com/api/?name=User&background=121214&color=ffffff'">
+                            <h3>${insider.name}</h3>
+                            ${extraInfo}
+                        </div>
+                    `;
+                });
+
+                if (renderCount === 0) {
+                    grid.innerHTML = '<p style="color:var(--text-muted); grid-column: 1 / -1;">No entities found matching the selected criteria.</p>';
+                }
+            } catch (err) {
+                console.error("Fetch Error:", err);
+            }
+        }
+
+        async function loadInsiders() {
+            switchView('insiders-view');
+            const grid = document.getElementById('insiders-grid');
+            grid.innerHTML = '<p>Querying database...</p>';
+            
+            const n = document.getElementById('in-name').value || "";
+            const p = document.getElementById('in-party').value || "";
+            const t = document.getElementById('in-ticker').value || "";
+            
+            try {
+                const res = await fetch(`http://localhost:8000/api/insiders?name=${n}&party=${p}&ticker=${t}`);
+                const data = await res.json();
+                grid.innerHTML = '';
+                
+                let renderCount = 0;
+                data.insiders.forEach(insider => {
+                    let show = true;
+                    if (show) {
+                        renderCount++;
+                        grid.innerHTML += `
+                            <div class="insider-card" onclick="openProfile('${insider.name}')">
+                                <img src="${insider.image_url}" onerror="this.src='https://ui-avatars.com/api/?name=User&background=121214&color=ffffff'">
+                                <h3>${insider.name}</h3>
+                                <p>${insider.role} | ${insider.party}</p>
+                            </div>
+                        `;
+                    }
+                });
+
+                if (renderCount === 0) {
+                    grid.innerHTML = '<p style="color:var(--text-muted); grid-column: 1 / -1;">No entities found matching the selected criteria.</p>';
+                }
+            } catch (err) {
+                console.error("Insiders Error:", err);
+            }
+        }
+
+        async function loadPredictions(category = 'Politics') {
+            switchView('predictions-view');
+            
+            ['Politics', 'Economy', 'Finance'].forEach(cat => {
+                const btn = document.getElementById(`btn-pred-${cat}`);
+                if (btn) btn.classList.remove('active');
+            });
+            const activeBtn = document.getElementById(`btn-pred-${category}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const grid = document.getElementById('predictions-grid');
+            grid.innerHTML = '<p>Connecting to Polymarket Gamma API...</p>';
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/predictions/${category}`);
+                const data = await res.json();
+                grid.innerHTML = '';
+                
+                data.predictions.forEach(p => {
+                    let outcomeHtml = '';
+                    p.outcomes.forEach(out => {
+                        let barColor = 'var(--accent-brand)';
+                        let nameLower = out.name.toLowerCase();
+                        if (nameLower === 'yes') barColor = 'var(--accent-buy)';
+                        else if (nameLower === 'no') barColor = 'var(--accent-sell)';
+                        else if (nameLower.includes('democrat') || nameLower.includes('harris') || nameLower.includes('newsom')) barColor = 'var(--democrat-blue)';
+                        else if (nameLower.includes('republican') || nameLower.includes('trump') || nameLower.includes('desantis') || nameLower.includes('vance')) barColor = 'var(--republican-red)';
+                        else if (nameLower.includes('independent') || nameLower.includes('rfk')) barColor = 'var(--independent-grey)';
+                        
+                        outcomeHtml += `
+                            <div style="margin-bottom:0.8rem;">
+                                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.3rem;">
+                                    <span style="color:var(--text-pure); font-weight:500;">${out.name}</span><span style="font-weight:600; color:var(--text-muted);">${out.probability}%</span>
+                                </div>
+                                <div style="width:100%; background:var(--border-subtle); height:6px; border-radius:3px; overflow:hidden;">
+                                    <div style="width:${out.probability}%; background:${barColor}; height:100%; border-radius:3px;"></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    grid.innerHTML += `
+                        <div class="metric-card" style="display:flex; flex-direction:column; justify-content:space-between; cursor:pointer; transition:transform 0.2s, border-color 0.2s;" onclick="window.open('${p.url}', '_blank')" onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--text-muted)';" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='var(--border-subtle)';">
+                            <div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.8rem; text-transform:uppercase; font-weight:700;">Vol: ${p.volume_str}</div>
+                                <div style="font-weight:600; font-size:1.05rem; margin-bottom:1.5rem; line-height:1.4;">${p.title}</div>
+                            </div>
+                            <div>
+                                ${outcomeHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                grid.innerHTML = '<p style="color:var(--accent-sell);">Failed to load prediction markets. Polymarket API may be rate-limiting.</p>';
+            }
+        }
+        
+        async function loadPortfolio() {
+            if (!currentUser) {
+                document.getElementById('auth-modal').style.display = 'flex';
+                return;
+            }
+
+            switchView('portfolio-view');
+            const tbody = document.getElementById('portfolio-body');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Calculating quantitative portfolio metrics...</td></tr>';
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/portfolio/${currentUser}`);
+                const data = await res.json();
+                
+                tbody.innerHTML = '';
+                if (!data.portfolio || data.portfolio.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">Your personal portfolio is empty. Add a ticker symbol above to begin tracking quantitative valuations.</td></tr>';
+                    return;
+                }
+
+                data.portfolio.forEach(item => {
+                    const tr = document.createElement('tr');
+                    
+                    const changeVal = item.daily_change;
+                    const changeClass = changeVal > 0 ? 'signal-buy' : changeVal < 0 ? 'signal-sell' : 'signal-neutral';
+                    const changePrefix = changeVal > 0 ? '+' : '';
+                    
+                    const upsideVal = item.valuation.implied_upside_pct;
+                    const upsideClass = upsideVal > 0 ? 'signal-buy' : upsideVal < 0 ? 'signal-sell' : 'signal-neutral';
+                    const upsidePrefix = upsideVal > 0 ? '+' : '';
+
+                    tr.innerHTML = `
+                        <td style="font-weight:700;"><a class="entity-link" onclick="openCompanyProfile('${item.ticker}')">$${item.ticker}</a></td>
+                        <td>$${item.current_price.toFixed(2)}</td>
+                        <td class="${changeClass}">${changePrefix}${changeVal.toFixed(2)}%</td>
+                        <td style="font-weight:700; color:var(--accent-brand);">$${item.valuation.alpha_target_price.toFixed(2)}</td>
+                        <td class="${upsideClass}">${upsidePrefix}${upsideVal.toFixed(2)}%</td>
+                        <td>${item.valuation.pe_ratio}</td>
+                        <td><button onclick="removePortfolioTicker('${item.ticker}')" style="background:rgba(239, 68, 68, 0.15); color:var(--accent-sell); border:1px solid rgba(239, 68, 68, 0.3); padding:0.3rem 0.8rem; border-radius:4px; font-weight:600; cursor:pointer; font-size:0.75rem;">Remove</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Portfolio Load Error:", err);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--accent-sell);">Failed to load portfolio metrics.</td></tr>';
+            }
+        }
+
+        async function addPortfolioTicker() {
+            if (!currentUser) {
+                document.getElementById('auth-modal').style.display = 'flex';
+                return;
+            }
+
+            const input = document.getElementById('port-ticker-input');
+            const ticker = input.value.trim().toUpperCase();
+            if (!ticker) return;
+
+            try {
+                const res = await fetch('http://localhost:8000/api/portfolio/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser, ticker: ticker })
+                });
+
+                if (res.ok) {
+                    input.value = '';
+                    showToast("Portfolio Updated", `$${ticker} successfully added to your holdings.`);
+                    loadPortfolio();
+                } else {
+                    alert("Failed to add ticker to portfolio.");
+                }
+            } catch (err) {
+                console.error("Add Portfolio Error:", err);
+            }
+        }
+
+        async function removePortfolioTicker(ticker) {
+            if (!currentUser) return;
+
+            try {
+                const res = await fetch('http://localhost:8000/api/portfolio/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser, ticker: ticker })
+                });
+
+                if (res.ok) {
+                    showToast("Portfolio Updated", `$${ticker} removed from your holdings.`);
+                    loadPortfolio();
+                } else {
+                    alert("Failed to remove ticker.");
+                }
+            } catch (err) {
+                console.error("Remove Portfolio Error:", err);
+            }
+        }
+    </script>
+</body>
+</html>
