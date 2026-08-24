@@ -289,7 +289,6 @@
         
         <p class="profile-bio" id="prof-bio"></p>
 
-        <!-- DYNAMIC TOP METRICS GRID -->
         <div class="metrics-grid" id="prof-top-metrics">
             <div class="metric-card">
                 <div class="metric-title">TOTAL TRADED VOLUME</div>
@@ -374,23 +373,6 @@
         </div>
     </main>
 
-    <!-- VIEW 6: GENERAL INSIDERS (Search Page) -->
-    <main id="insiders-view" class="view-section">
-        <h1 class="ticker-header">Insider & Politician Database</h1>
-        <div class="main-search-container" style="max-width: 1000px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
-            <input type="text" id="in-name" placeholder="Name" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <select id="in-party" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
-                <option value="">Any Party</option><option value="Democrat">Democrat</option><option value="Republican">Republican</option>
-            </select>
-            <input type="text" id="in-state" placeholder="State (e.g. CA)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 150px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <input type="text" id="in-ticker" placeholder="Ticker" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 120px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <button class="main-search-btn" onclick="loadInsiders()">SEARCH</button>
-        </div>
-
-        <h3 class="metric-title" style="margin-bottom: 1rem;">DIRECTORY RESULTS</h3>
-        <div id="insiders-grid" class="grid-6-col" style="margin-top: 0; margin-bottom: 4rem;"></div>
-    </main>
-
     <!-- VIEW 6A: POLITICAL INSIDERS -->
     <main id="political-insiders-view" class="view-section">
         <h1 class="ticker-header">Political Insiders</h1>
@@ -424,6 +406,22 @@
         <div id="hf-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
     </main>
 
+    <!-- VIEW 6: GENERAL INSIDERS (Search Page) -->
+    <main id="insiders-view" class="view-section">
+        <h1 class="ticker-header">Insider & Politician Database</h1>
+        <div class="main-search-container" style="max-width: 1000px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="in-name" placeholder="Name" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <select id="in-party" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+                <option value="">Any Party</option><option value="Democrat">Democrat</option><option value="Republican">Republican</option>
+            </select>
+            <input type="text" id="in-state" placeholder="State (e.g. CA)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 150px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <input type="text" id="in-ticker" placeholder="Ticker" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 120px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <button class="main-search-btn" onclick="loadInsiders()">SEARCH</button>
+        </div>
+        <h3 class="metric-title" style="margin-bottom: 1rem;">DIRECTORY RESULTS</h3>
+        <div id="insiders-grid" class="grid-6-col" style="margin-top: 0; margin-bottom: 4rem;"></div>
+    </main>
+
     <!-- VIEW 7: NEWS -->
     <main id="news-view" class="view-section">
         <h1 class="ticker-header">Live Market Intelligence</h1>
@@ -444,14 +442,14 @@
         <div id="predictions-grid" class="grid-container"></div>
     </main>
 
-    <!-- VIEW 9: COMPANIES (Search Page) -->
+    <!-- VIEW 9: COMPANIES (Search Page) WITH CENTERED ALIGNMENT -->
     <main id="companies-view" class="view-section">
-        <div style="max-width: 800px;">
+        <div style="max-width: 800px; margin: 0 auto; text-align: center; padding-top: 2rem;">
             <p style="color:var(--accent-brand); font-weight:700; font-size:0.8rem; letter-spacing:0.1em; margin-bottom:0.5rem; text-transform:uppercase;">Security Analysis</p>
             <h1 class="ticker-header" style="margin-bottom: 1rem;">Corporate Intelligence</h1>
             <p style="color:var(--text-muted); margin-bottom:3rem; font-size: 1.1rem; line-height: 1.6;">Access institutional-grade valuation models, algorithmic alpha conviction ratings, and real-time fundamental datasets for global equities.</p>
             
-            <div class="modern-search-wrapper">
+            <div class="modern-search-wrapper" style="text-align: left;">
                 <div class="modern-input-group">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1.2rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     
@@ -460,7 +458,7 @@
                     <button class="modern-search-btn" onclick="openCompanyProfile(document.getElementById('comp-ticker').value)">Analyze</button>
                 </div>
                 
-                <div class="trending-row">
+                <div class="trending-row" style="justify-content: center;">
                     <span class="trending-label">Trending Searches:</span>
                     <span class="trending-pill" onclick="openCompanyProfile('NVDA')">NVDA</span>
                     <span class="trending-pill" onclick="openCompanyProfile('PLTR')">PLTR</span>
@@ -471,7 +469,7 @@
             </div>
 
             <!-- Database Status Indicators -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3.5rem; border-top: 1px solid var(--border-subtle); padding-top: 2rem;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3.5rem; border-top: 1px solid var(--border-subtle); padding-top: 2rem; text-align: center;">
                 <div>
                     <div style="color:var(--text-pure); font-size:1.5rem; font-weight:600;">8,400+</div>
                     <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase; font-weight:600; margin-top:0.25rem;">Equities Tracked</div>
@@ -782,7 +780,7 @@
             if (!ticker) return;
 
             switchView('company-profile-view');
-            document.getElementById('comp-name').textContent = "Retrieving corporate data...";
+            document.getElementById('comp-name').textContent = "Retrieving data...";
             document.getElementById('comp-summary').textContent = "Parsing SEC filings & fundamental datasets...";
             document.getElementById('comp-logo').textContent = ticker;
             
