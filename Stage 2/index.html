@@ -22,7 +22,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-pure); line-height: 1.5; overflow-x: hidden; }
         
-        /* GLOBAL FONT FIX FOR ALL INPUTS, BUTTONS, AND SEARCH BARS */
         input, button, select, textarea { font-family: inherit; }
         ::placeholder { font-family: inherit; opacity: 0.7; }
 
@@ -56,7 +55,6 @@
         .main-search-btn { background-color: var(--text-pure); color: var(--bg-base); border: none; padding: 1rem 2.5rem; border-radius: 30px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .main-search-btn:hover { opacity: 0.9; }
         
-        /* MODERN CORPORATE SEARCH UI */
         .modern-search-wrapper { background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 2.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; }
         .modern-input-group { display: flex; align-items: center; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.4rem; transition: all 0.2s ease; }
         .modern-input-group:focus-within { border-color: var(--accent-brand); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
@@ -207,8 +205,11 @@
                 The Alpha Conviction target mathematically prices the intensity, velocity, and historical outperformance of insider accumulation into the stock's forward trajectory.
             </p>
             <div style="background:var(--bg-base); border:1px solid var(--border-subtle); padding:1.5rem; border-radius:8px; margin-bottom:1.5rem; font-family:monospace; color:var(--accent-brand); font-size:1.1rem; text-align:center; font-weight:700;">
-                Alpha Target = Current Price * (1 + ((Alpha Rating - 5.0) / 5.0) * 0.35)
+                Alpha Target = Previous Close * (1 + ((Alpha Rating - 5.0) / 5.0) * 0.35)
             </div>
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; margin-bottom:2rem; font-style: italic;">
+                *Anchoring to the previous close ensures that intraday price drops mathematically expand the implied upside in real-time.
+            </p>
             <div style="text-align:center;">
                 <button onclick="document.getElementById('formula-modal').style.display='none'" class="follow-btn">Close Breakdown</button>
             </div>
@@ -457,7 +458,6 @@
                 </div>
             </div>
 
-            <!-- Database Status Indicators -->
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3.5rem; border-top: 1px solid var(--border-subtle); padding-top: 2rem; text-align: center;">
                 <div>
                     <div style="color:var(--text-pure); font-size:1.5rem; font-weight:600;">8,400+</div>

@@ -28,7 +28,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 warnings.filterwarnings("ignore", category=UserWarning, module='wikipedia')
 try:
     import wikipedia
-    wikipedia.set_user_agent("TroyQuant/4.3 (Quantitative Intelligence Research) contact@troyquant.com")
+    wikipedia.set_user_agent("TroyQuant/4.5 (Quantitative Intelligence Research) contact@troyquant.com")
 except ImportError:
     pass
 
@@ -72,7 +72,7 @@ FALLBACK_PREDICTIONS = {
     ]
 }
 
-app = FastAPI(title="TROY Intelligence Engine", version="4.3")
+app = FastAPI(title="TROY Intelligence Engine", version="4.5")
 
 app.add_middleware(
     CORSMiddleware,
@@ -489,30 +489,23 @@ def calculate_troy_composite_valuation(ticker: str, alpha_rating: float) -> dict
     yf_ticker = yf.Ticker(ticker)
     info = yf_ticker.info
     
-    current_price = info.get('currentPrice', info.get('regularMarketPrice', 0.0))
-    if current_price <= 0:
-        try:
-            current_price = float(yf_ticker.fast_info['last_price'])
-        except Exception:
-            current_price = 100.0  
-
-    # CORE FIX: Anchor target price to 50-day moving average so daily changes actively affect implied upside
     try:
-        ma_50 = float(yf_ticker.fast_info['fifty_day_average'])
+        current_price = float(yf_ticker.fast_info['last_price'])
+        prev_close = float(yf_ticker.fast_info['previous_close'])
     except Exception:
-        ma_50 = info.get('fiftyDayAverage', current_price)
-        
-    if ma_50 <= 0:
-        ma_50 = current_price
-
-    # P_ALPHA: Direct conviction pricing curve (Rating 1-10 translates to -25% to +35% upside structurally)
-    upside_conviction_pct = ((alpha_rating - 5.0) / 5.0) * 0.35
-    p_alpha = ma_50 * (1.0 + upside_conviction_pct)
+        current_price = info.get('currentPrice', info.get('regularMarketPrice', 100.0))
+        prev_close = info.get('previousClose', info.get('regularMarketPreviousClose', current_price))
     
-    # Calculate mathematically sound implied upside against today's dynamic price
+    if current_price <= 0: current_price = 100.0
+    if prev_close <= 0: prev_close = current_price
+
+    # P_ALPHA: Target price anchored strictly to YESTERDAY'S CLOSE.
+    # This allows intra-day price drops to properly expand the mathematical upside percent.
+    upside_conviction_pct = ((alpha_rating - 5.0) / 5.0) * 0.35
+    p_alpha = prev_close * (1.0 + upside_conviction_pct)
+    
     implied_upside = round(((p_alpha - current_price) / current_price) * 100, 2) if current_price > 0 else 0.0
 
-    # P/E Extraction
     pe_raw = info.get('trailingPE') or info.get('forwardPE') or 0.0
     pe_str = f"{pe_raw:.2f}x" if pe_raw > 0 else "N/A"
 
@@ -594,7 +587,7 @@ def sync_entity_profiles():
                                (row_ticker, parsed_date.strftime("%Y-%m-%d"), full_entity_str, "Congress (JSON API)", pos, amount_raw, est_val, today_str))
 
     except Exception as e:
-        print(f"Political Discovery Error: {e}")
+        pass
 
     try:
         dynamic_tickers = ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "PFE", "TSLA"]
@@ -617,12 +610,11 @@ def sync_entity_profiles():
                                (clean_name, original_name, role, bio, image_url, party, last_updated) 
                                VALUES (?, ?, ?, ?, ?, ?, ?)''', 
                                (clean_name, clean_name, role, bio, "", "Unknown", today_str))
-    except Exception as e:
-        print(f"Corporate Discovery Error: {e}")
+    except Exception as e: pass
 
     try:
         wiki_url = "https://en.wikipedia.org/wiki/List_of_hedge_funds"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         res = requests.get(wiki_url, headers=headers, timeout=10)
         if res.status_code == 200:
             tables = pd.read_html(io.StringIO(res.text))
@@ -639,27 +631,13 @@ def sync_entity_profiles():
                                            VALUES (?, ?, ?, ?, ?, ?, ?)''', 
                                            (clean_name, clean_name, "Institutional Fund", "Top-tier institutional asset management firm and global hedge fund.", "", "Unknown", today_str))
                     break
-    except Exception as e:
-        fallback_funds = [
-            "Bridgewater Associates", "Renaissance Technologies", "Millennium Management", "Citadel", 
-            "Two Sigma", "Elliott Management", "Pershing Square Capital Management", "AQR Capital Management", 
-            "Point72 Asset Management", "Balyasny Asset Management", "D. E. Shaw & Co.", "Baupost Group", 
-            "Farallon Capital", "Man Group", "Tiger Global Management", "Winton Group", "Marshall Wace", 
-            "Davidson Kempner", "Coatue Management", "Appaloosa Management", "Viking Global Investors",
-            "Capula Investment Management", "Third Point", "Brevan Howard"
-        ]
-        for fund in fallback_funds:
-            cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (fund,))
-            if not cursor.fetchone():
-                cursor.execute('''INSERT INTO entity_profiles 
-                               (clean_name, original_name, role, bio, image_url, party, last_updated) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                               (fund, fund, "Institutional Fund", "Top-tier institutional asset management firm and global hedge fund.", "", "Unknown", today_str))
+    except Exception as e: pass
 
     conn.commit()
     conn.close()
     print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Entity Discovery Scraper Complete.")
 
+# --- THE MISSING POLYMARKET PREDICTION SCRAPER FIX ---
 def sync_prediction_markets():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚙️ Executing Prediction Market Scraper...")
     conn = sqlite3.connect(DB_NAME)
@@ -770,15 +748,13 @@ def read_root():
 @app.get("/api/company/{ticker}")
 def get_company_profile(ticker: str):
     clean_sym = normalize_ticker(ticker)
-    if not clean_sym:
-        raise HTTPException(status_code=400, detail="Invalid ticker.")
+    if not clean_sym: raise HTTPException(status_code=400, detail="Invalid ticker.")
     try:
         yf_ticker = yf.Ticker(clean_sym)
         info = yf_ticker.info
         
         hist = yf_ticker.history(period="1y")
-        if hist.empty:
-            raise ValueError("No price history found.")
+        if hist.empty: raise ValueError("No price history found.")
             
         labels = hist.index.strftime('%Y-%m-%d').tolist()
         prices = [round(x, 2) for x in hist['Close'].tolist()]
@@ -843,12 +819,10 @@ def get_company_profile(ticker: str):
 @app.get("/api/scan/{ticker}")
 def scan_ticker(ticker: str):
     clean_sym = normalize_ticker(ticker)
-    if not clean_sym:
-        raise HTTPException(status_code=400, detail="Invalid ticker.")
+    if not clean_sym: raise HTTPException(status_code=400, detail="Invalid ticker.")
         
     raw_df = get_unified_flow_data(clean_sym, lookback_days=365)
-    if raw_df.empty: 
-        raise HTTPException(status_code=404, detail="No records found.")
+    if raw_df.empty: raise HTTPException(status_code=404, detail="No records found.")
         
     scored_df = apply_alpha_scoring_math(raw_df)
     rating, macro_signal = get_normalized_signal(scored_df["Alpha_Score"].sum())
@@ -861,19 +835,16 @@ def scan_ticker(ticker: str):
         try:
             current_price = float(yf_ticker.fast_info['last_price'])
             prev_close = float(yf_ticker.fast_info['previous_close'])
-        except Exception:
+        except:
             info = yf_ticker.info
             current_price = info.get('currentPrice', info.get('regularMarketPrice', 0.0))
             prev_close = info.get('previousClose', info.get('regularMarketPreviousClose', 0.0))
             
         company_name = yf_ticker.info.get('shortName', yf_ticker.info.get('longName', f"{clean_sym} Corp."))
-            
         if current_price and prev_close and prev_close > 0:
             daily_change = ((current_price - prev_close) / prev_close) * 100
-        else:
-            daily_change = 0.0
-            
-    except Exception:
+        else: daily_change = 0.0
+    except:
         company_name = f"{clean_sym} Corp."
         current_price = 0.0
         daily_change = 0.0
@@ -997,10 +968,8 @@ def get_profile(entity_name: str):
         rng = random.Random(h_int)
         pool = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "BRK-B", "LLY", "JPM", "V", "MA", "AVGO", "TSLA", "WMT", "UNH"]
         selected_tickers = rng.sample(pool, 7)
-        
         sim_sectors = ["Technology", "Healthcare", "Financial Services", "Consumer Cyclical", "Energy"]
         entity_sectors = rng.sample(sim_sectors, 2)
-        
         for t in selected_tickers:
             val = rng.uniform(100_000_000, 4_000_000_000)
             holdings[t] = val
@@ -1041,7 +1010,6 @@ def get_profile(entity_name: str):
         pac_money = "N/A (Corporate Entity)"
     elif role == "Institutional Fund":
         pac_money = "N/A (Institutional Entity)"
-        
         aum_val = (h_int % 80) + 15
         aum_str = f"${aum_val}.{h_int%9} Billion"
         
@@ -1134,9 +1102,9 @@ def get_rankings():
         
     strong_buys = [r for r in results if r["alpha_rating"] >= 7.5]
     if not strong_buys:
-        strong_buys = sorted(results, key=lambda x: x['alpha_rating'], reverse=True)
+        strong_buys = sorted(results, key=lambda x: (x['alpha_rating'], x['upside']), reverse=True)
     else:
-        strong_buys = sorted(strong_buys, key=lambda x: x['alpha_rating'], reverse=True)
+        strong_buys = sorted(strong_buys, key=lambda x: (x['alpha_rating'], x['upside']), reverse=True)
         
     return {"rankings": strong_buys}
 
