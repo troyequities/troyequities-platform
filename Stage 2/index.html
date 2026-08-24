@@ -51,6 +51,18 @@
         .main-search-btn { background-color: var(--text-pure); color: var(--bg-base); border: none; padding: 1rem 2.5rem; border-radius: 30px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .main-search-btn:hover { opacity: 0.9; }
         
+        /* MODERN CORPORATE SEARCH UI */
+        .modern-search-wrapper { background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 2.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; }
+        .modern-input-group { display: flex; align-items: center; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.4rem; transition: all 0.2s ease; }
+        .modern-input-group:focus-within { border-color: var(--accent-brand); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        .modern-input { flex: 1; background: transparent; border: none; color: var(--text-pure); padding: 1rem 1.5rem; font-size: 1.1rem; outline: none; font-family: 'Inter', sans-serif; }
+        .modern-search-btn { background: var(--text-pure); color: var(--bg-base); border: none; padding: 0.9rem 2.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; text-transform: uppercase; }
+        .modern-search-btn:hover { opacity: 0.9; }
+        .trending-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; align-items: center; flex-wrap: wrap; }
+        .trending-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .trending-pill { background: rgba(59, 130, 246, 0.1); color: var(--accent-brand); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .trending-pill:hover { background: var(--accent-brand); color: #fff; }
+
         .pill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; width: 100%; max-width: 700px; margin: 0 auto; }
         .pill-card { background-color: transparent; border: 1px solid var(--border-subtle); border-radius: 30px; padding: 1rem 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
         .pill-card:hover { border-color: var(--text-pure); color: var(--text-pure); }
@@ -182,6 +194,22 @@
         </div>
     </div>
 
+    <!-- FORMULA MODAL -->
+    <div id="formula-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
+        <div style="background:var(--bg-panel); padding:3rem; border-radius:12px; border:1px solid var(--border-subtle); width:550px; text-align:left;">
+            <h2 style="margin-bottom:1.5rem; text-align:center;">Alpha Conviction Model</h2>
+            <p style="color:var(--text-muted); font-size:0.9rem; text-align:center; margin-bottom:1.5rem;">
+                The Alpha Conviction target mathematically prices the intensity, velocity, and historical outperformance of insider accumulation into the stock's forward trajectory.
+            </p>
+            <div style="background:var(--bg-base); border:1px solid var(--border-subtle); padding:1.5rem; border-radius:8px; margin-bottom:1.5rem; font-family:monospace; color:var(--accent-brand); font-size:1.1rem; text-align:center; font-weight:700;">
+                Alpha Target = Current Price * (1 + ((Alpha Rating - 5.0) / 5.0) * 0.35)
+            </div>
+            <div style="text-align:center;">
+                <button onclick="document.getElementById('formula-modal').style.display='none'" class="follow-btn">Close Breakdown</button>
+            </div>
+        </div>
+    </div>
+
     <!-- VIEW 1: HOME -->
     <main id="home-view" class="view-section" style="display:block;">
         <div class="hero-section">
@@ -285,7 +313,7 @@
             </div>
             <div class="metric-card" id="prof-mom-card" style="display:none;">
                 <div class="metric-title">SECTOR MOMENTUM</div>
-                <div class="metric-value" id="prof-momentum">--</div>
+                <div class="metric-value" id="prof-momentum" style="font-size: 1.35rem; font-weight:600; line-height:1.2;">--</div>
             </div>
         </div>
 
@@ -418,11 +446,45 @@
 
     <!-- VIEW 9: COMPANIES (Search Page) -->
     <main id="companies-view" class="view-section">
-        <h1 class="ticker-header">Corporate Database</h1>
-        <p style="color:var(--text-muted); margin-bottom:2rem;">Search publicly traded companies to view corporate intelligence, price action, and fundamental metrics.</p>
-        <div class="main-search-container" style="max-width: 800px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
-            <input type="text" id="comp-ticker" placeholder="Enter Ticker (e.g. AAPL)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); text-transform: uppercase;" onkeydown="if(event.key === 'Enter') openCompanyProfile(document.getElementById('comp-ticker').value)">
-            <button class="main-search-btn" onclick="openCompanyProfile(document.getElementById('comp-ticker').value)">SEARCH</button>
+        <div style="max-width: 800px;">
+            <p style="color:var(--accent-brand); font-weight:700; font-size:0.8rem; letter-spacing:0.1em; margin-bottom:0.5rem; text-transform:uppercase;">Security Analysis</p>
+            <h1 class="ticker-header" style="margin-bottom: 1rem;">Corporate Intelligence</h1>
+            <p style="color:var(--text-muted); margin-bottom:3rem; font-size: 1.1rem; line-height: 1.6;">Access institutional-grade valuation models, algorithmic alpha conviction ratings, and real-time fundamental datasets for global equities.</p>
+            
+            <div class="modern-search-wrapper">
+                <div class="modern-input-group">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1.2rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    
+                    <input type="text" id="comp-ticker" placeholder="Enter Ticker Symbol (e.g. AAPL, NVDA, PLTR)" class="modern-input" style="text-transform: uppercase;" onkeydown="if(event.key === 'Enter') openCompanyProfile(document.getElementById('comp-ticker').value)">
+                    
+                    <button class="modern-search-btn" onclick="openCompanyProfile(document.getElementById('comp-ticker').value)">Analyze</button>
+                </div>
+                
+                <div class="trending-row">
+                    <span class="trending-label">Trending Searches:</span>
+                    <span class="trending-pill" onclick="openCompanyProfile('NVDA')">NVDA</span>
+                    <span class="trending-pill" onclick="openCompanyProfile('PLTR')">PLTR</span>
+                    <span class="trending-pill" onclick="openCompanyProfile('META')">META</span>
+                    <span class="trending-pill" onclick="openCompanyProfile('TSLA')">TSLA</span>
+                    <span class="trending-pill" onclick="openCompanyProfile('GS')">GS</span>
+                </div>
+            </div>
+
+            <!-- Database Status Indicators -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3.5rem; border-top: 1px solid var(--border-subtle); padding-top: 2rem;">
+                <div>
+                    <div style="color:var(--text-pure); font-size:1.5rem; font-weight:600;">8,400+</div>
+                    <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase; font-weight:600; margin-top:0.25rem;">Equities Tracked</div>
+                </div>
+                <div>
+                    <div style="color:var(--text-pure); font-size:1.5rem; font-weight:600;">Real-Time</div>
+                    <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase; font-weight:600; margin-top:0.25rem;">Pricing & Multiples</div>
+                </div>
+                <div>
+                    <div style="color:var(--accent-brand); font-size:1.5rem; font-weight:600;">Live Sync</div>
+                    <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase; font-weight:600; margin-top:0.25rem;">Alpha Conviction Matrix</div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -446,8 +508,11 @@
         
         <p class="profile-bio" id="comp-summary" style="font-size: 1.05rem; line-height: 1.7; max-width: 1000px; margin-bottom: 3rem;"></p>
 
-        <!-- STREAMLINED VALUATION CARDS -->
-        <h3 class="metric-title" style="margin-top: 2rem; margin-bottom: 1rem;">QUANTITATIVE VALUATION MODEL</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 2rem; margin-bottom: 1rem;">
+            <h3 class="metric-title" style="margin:0;">QUANTITATIVE VALUATION MODEL</h3>
+            <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem;" onclick="document.getElementById('formula-modal').style.display='flex'">View Formula & Breakdown</button>
+        </div>
+        
         <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr);">
             <div class="metric-card" style="border: 1px solid var(--accent-brand);">
                 <div class="metric-title" style="color:var(--accent-brand);">ALPHA CONVICTION TARGET</div>
@@ -739,7 +804,6 @@
                 document.getElementById('comp-dividend').textContent = data.dividend_yield;
                 document.getElementById('comp-highlow').textContent = `${data.high_52} / ${data.low_52}`;
 
-                // Simplified Valuation Card Outputs
                 document.getElementById('val-alpha-price').textContent = `$${data.valuation.alpha_target_price.toFixed(2)}`;
                 
                 const upsideEl = document.getElementById('val-upside');
@@ -948,7 +1012,7 @@
                         legend: { position: 'top', labels: { color: '#a1a1aa', font: { family: 'Inter' } } } 
                     },
                     scales: {
-                        x: { ticks: { color: '#a1a1aa' }, grid: { color: '#27272a' } },
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 12 }, grid: { color: '#27272a' } },
                         y: { 
                             ticks: { 
                                 color: '#a1a1aa',
