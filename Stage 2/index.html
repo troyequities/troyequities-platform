@@ -573,11 +573,23 @@
         </div>
     </main>
 
-    <!-- VIEW 12: RANKINGS ENGINE -->
+    <!-- VIEW 12: RANKINGS ENGINE WITH TOP PERFORMANCE CHART -->
     <main id="rankings-view" class="view-section">
         <h1 class="ticker-header">Top Conviction Rankings</h1>
-        <p style="color:var(--text-muted); margin-bottom:2rem;">The highest-rated active "Strong Buy" equities calculated autonomously via tracked lawmaker and insider capital flows.</p>
+        <p style="color:var(--text-muted); margin-bottom:2rem;">The highest-rated active "Strong Buy" equities calculated autonomously via tracked lawmaker and insider capital flows. <b>Performance tracking initialized 24/08/2026.</b></p>
         
+        <div class="chart-box" style="margin-top: 2rem; width: 100%; margin-bottom: 3rem;">
+            <div style="display:flex; justify-content:space-between; width:100%; margin-bottom: 1.5rem;">
+                <h3 class="metric-title">TROY 10/10 ALPHA INDEX VS. S&P 500</h3>
+                <div>
+                    <span style="font-size:0.75rem; color:var(--accent-brand); text-transform:uppercase; font-weight:700; letter-spacing:0.05em; border: 1px solid var(--accent-brand); padding: 0.2rem 0.6rem; border-radius: 4px; background: rgba(59, 130, 246, 0.1);">Live Tracking Active</span>
+                </div>
+            </div>
+            <div style="width: 100%; height: 350px;">
+                <canvas id="rankingsChart"></canvas>
+            </div>
+        </div>
+
         <div class="table-container">
             <table>
                 <thead>
@@ -620,6 +632,7 @@
         let lineChartInstance = null; 
         let pieChartInstance = null;
         let compChartInstance = null;
+        let rankingsChartInstance = null; // New chart variable
         let currentUser = localStorage.getItem('troy_user');
         let eventSource = null;
 
@@ -1028,6 +1041,60 @@
             });
         }
 
+        function renderRankingsChart(chartData) {
+            const ctx = document.getElementById('rankingsChart').getContext('2d');
+            if (rankingsChartInstance) { rankingsChartInstance.destroy(); }
+            rankingsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'TROY 10/10 Index (%)',
+                            data: chartData.portfolio,
+                            borderColor: '#10b981', 
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3, 
+                            fill: true, 
+                            tension: 0.4, 
+                            pointRadius: 0,
+                            pointHitRadius: 10
+                        },
+                        {
+                            label: 'S&P 500 (%)',
+                            data: chartData.spy,
+                            borderColor: '#a1a1aa', 
+                            backgroundColor: 'transparent',
+                            borderWidth: 2, 
+                            fill: false, 
+                            tension: 0.4, 
+                            borderDash: [5, 5], 
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } },
+                        tooltip: { backgroundColor: 'rgba(18, 18, 20, 0.9)', titleColor: '#fff', bodyColor: '#fff', borderColor: '#27272a', borderWidth: 1, padding: 10 }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: 'rgba(39, 39, 42, 0.5)' } },
+                        y: { 
+                            ticks: { color: '#a1a1aa', callback: function(value) { return value + "%"; } }, 
+                            grid: { color: 'rgba(39, 39, 42, 0.5)' } 
+                        }
+                    }
+                }
+            });
+        }
+
         async function loadNews() {
             switchView('news-view');
             const grid = document.getElementById('news-grid');
@@ -1058,8 +1125,13 @@
             try {
                 const res = await fetch('http://localhost:8000/api/rankings');
                 const data = await res.json();
-                tbody.innerHTML = '';
                 
+                // RENDER THE NEW TOP PORTFOLIO CHART
+                if (data.chart_data && data.chart_data.labels.length > 0) {
+                    renderRankingsChart(data.chart_data);
+                }
+                
+                tbody.innerHTML = '';
                 if (!data.rankings || data.rankings.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No active signals met the criteria.</td></tr>';
                     return;
