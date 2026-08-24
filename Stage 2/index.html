@@ -21,6 +21,11 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-pure); line-height: 1.5; overflow-x: hidden; }
+        
+        /* GLOBAL FONT FIX FOR ALL INPUTS, BUTTONS, AND SEARCH BARS */
+        input, button, select, textarea { font-family: inherit; }
+        ::placeholder { font-family: inherit; opacity: 0.7; }
+
         h1, h2, h3, th { color: var(--text-pure); letter-spacing: 0.02em; }
 
         nav { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 2.5rem; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0; z-index: 100; }
@@ -55,7 +60,7 @@
         .modern-search-wrapper { background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 2.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; }
         .modern-input-group { display: flex; align-items: center; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.4rem; transition: all 0.2s ease; }
         .modern-input-group:focus-within { border-color: var(--accent-brand); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
-        .modern-input { flex: 1; background: transparent; border: none; color: var(--text-pure); padding: 1rem 1.5rem; font-size: 1.1rem; outline: none; font-family: 'Inter', sans-serif; }
+        .modern-input { flex: 1; background: transparent; border: none; color: var(--text-pure); padding: 1rem 1.5rem; font-size: 1.1rem; outline: none; }
         .modern-search-btn { background: var(--text-pure); color: var(--bg-base); border: none; padding: 0.9rem 2.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; text-transform: uppercase; }
         .modern-search-btn:hover { opacity: 0.9; }
         .trending-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; align-items: center; flex-wrap: wrap; }
@@ -312,7 +317,7 @@
             </div>
             <div class="metric-card" id="prof-mom-card" style="display:none;">
                 <div class="metric-title">SECTOR MOMENTUM</div>
-                <div class="metric-value" id="prof-momentum" style="font-size: 1.35rem; font-weight:600; line-height:1.2;">--</div>
+                <div class="metric-value" id="prof-momentum">--</div>
             </div>
         </div>
 
@@ -404,22 +409,6 @@
             <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('Fund', 'hf-insiders-grid', 'hf-in-name')">SEARCH</button>
         </div>
         <div id="hf-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
-    </main>
-
-    <!-- VIEW 6: GENERAL INSIDERS (Search Page) -->
-    <main id="insiders-view" class="view-section">
-        <h1 class="ticker-header">Insider & Politician Database</h1>
-        <div class="main-search-container" style="max-width: 1000px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
-            <input type="text" id="in-name" placeholder="Name" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <select id="in-party" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
-                <option value="">Any Party</option><option value="Democrat">Democrat</option><option value="Republican">Republican</option>
-            </select>
-            <input type="text" id="in-state" placeholder="State (e.g. CA)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 150px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <input type="text" id="in-ticker" placeholder="Ticker" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 120px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <button class="main-search-btn" onclick="loadInsiders()">SEARCH</button>
-        </div>
-        <h3 class="metric-title" style="margin-bottom: 1rem;">DIRECTORY RESULTS</h3>
-        <div id="insiders-grid" class="grid-6-col" style="margin-top: 0; margin-bottom: 4rem;"></div>
     </main>
 
     <!-- VIEW 7: NEWS -->
@@ -606,6 +595,22 @@
                 <tbody id="rankings-body"></tbody>
             </table>
         </div>
+    </main>
+
+    <!-- VIEW 6: GENERAL INSIDERS (Search Page) -->
+    <main id="insiders-view" class="view-section">
+        <h1 class="ticker-header">Insider & Politician Database</h1>
+        <div class="main-search-container" style="max-width: 1000px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="in-name" placeholder="Name" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <select id="in-party" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+                <option value="">Any Party</option><option value="Democrat">Democrat</option><option value="Republican">Republican</option>
+            </select>
+            <input type="text" id="in-state" placeholder="State (e.g. CA)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 150px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <input type="text" id="in-ticker" placeholder="Ticker" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 120px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <button class="main-search-btn" onclick="loadInsiders()">SEARCH</button>
+        </div>
+        <h3 class="metric-title" style="margin-bottom: 1rem;">DIRECTORY RESULTS</h3>
+        <div id="insiders-grid" class="grid-6-col" style="margin-top: 0; margin-bottom: 4rem;"></div>
     </main>
 
     <!-- NOTIFICATION CONTAINER -->
