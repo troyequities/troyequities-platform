@@ -28,7 +28,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 warnings.filterwarnings("ignore", category=UserWarning, module='wikipedia')
 try:
     import wikipedia
-    wikipedia.set_user_agent("TroyQuant/4.5 (Quantitative Intelligence Research) contact@troyquant.com")
+    wikipedia.set_user_agent("TroyQuant/4.6 (Quantitative Intelligence Research) contact@troyquant.com")
 except ImportError:
     pass
 
@@ -47,32 +47,7 @@ INVALID_TICKERS = {
     "BOND", "MUNI", "TREASURY", "USD", "CURRENCY", ""
 }
 
-FALLBACK_PREDICTIONS = {
-    "Economy": [
-        {"title": "Fed Funds Rate Target (End of 2026)", "volume": 4500000, "volume_str": "$4,500,000", "outcomes": [{"name": "4.00-4.25%", "probability": 45.5}, {"name": "4.25-4.50%", "probability": 30.2}, {"name": "3.75-4.00%", "probability": 15.0}, {"name": "4.50-4.75%", "probability": 9.3}], "url": "https://polymarket.com"},
-        {"title": "US Core CPI YoY (Next Print) > 2.8%", "volume": 3200000, "volume_str": "$3,200,000", "outcomes": [{"name": "Yes", "probability": 62.1}, {"name": "No", "probability": 37.9}], "url": "https://polymarket.com"},
-        {"title": "US Real GDP Growth Q3 2026 > 2.0%", "volume": 2100000, "volume_str": "$2,100,000", "outcomes": [{"name": "Yes", "probability": 55.4}, {"name": "No", "probability": 44.6}], "url": "https://polymarket.com"},
-        {"title": "ECB Deposit Facility Rate < 3.0% by EOY", "volume": 1850000, "volume_str": "$1,850,000", "outcomes": [{"name": "Yes", "probability": 72.5}, {"name": "No", "probability": 27.5}], "url": "https://polymarket.com"},
-        {"title": "US Unemployment Rate > 4.2% by Next Quarter", "volume": 1500000, "volume_str": "$1,500,000", "outcomes": [{"name": "Yes", "probability": 48.0}, {"name": "No", "probability": 52.0}], "url": "https://polymarket.com"},
-        {"title": "Bank of England Rate Cut in Next Meeting", "volume": 1200000, "volume_str": "$1,200,000", "outcomes": [{"name": "Yes", "probability": 85.2}, {"name": "No", "probability": 14.8}], "url": "https://polymarket.com"}
-    ],
-    "Finance": [
-        {"title": "S&P 500 (SPX) Hits 6,000 Before EOY", "volume": 8500000, "volume_str": "$8,500,000", "outcomes": [{"name": "Yes", "probability": 58.4}, {"name": "No", "probability": 41.6}], "url": "https://polymarket.com"},
-        {"title": "Bitcoin (BTC) > $100k in 2026", "volume": 15400000, "volume_str": "$15,400,000", "outcomes": [{"name": "Yes", "probability": 62.5}, {"name": "No", "probability": 37.5}], "url": "https://polymarket.com"},
-        {"title": "Apple (AAPL) Reaches $4T Market Cap", "volume": 5200000, "volume_str": "$5,200,000", "outcomes": [{"name": "Yes", "probability": 45.1}, {"name": "No", "probability": 54.9}], "url": "https://polymarket.com"},
-        {"title": "Nvidia (NVDA) Q3 Revenue > $32 Billion", "volume": 9100000, "volume_str": "$9,100,000", "outcomes": [{"name": "Yes", "probability": 78.2}, {"name": "No", "probability": 21.8}], "url": "https://polymarket.com"},
-        {"title": "Spot Solana (SOL) ETF Approved by SEC", "volume": 6300000, "volume_str": "$6,300,000", "outcomes": [{"name": "No", "probability": 65.4}, {"name": "Yes", "probability": 34.6}], "url": "https://polymarket.com"}
-    ],
-    "Politics": [
-        {"title": "2028 Democratic Presidential Nominee", "volume": 12500000, "volume_str": "$12,500,000", "outcomes": [{"name": "Gavin Newsom", "probability": 35.2}, {"name": "Kamala Harris", "probability": 28.4}, {"name": "Josh Shapiro", "probability": 15.1}, {"name": "Pete Buttigieg", "probability": 12.5}], "url": "https://polymarket.com"},
-        {"title": "2028 Republican Presidential Nominee", "volume": 11200000, "volume_str": "$11,200,000", "outcomes": [{"name": "JD Vance", "probability": 42.1}, {"name": "Donald Trump", "probability": 25.5}, {"name": "Vivek Ramaswamy", "probability": 18.2}, {"name": "Glenn Youngkin", "probability": 9.4}], "url": "https://polymarket.com"},
-        {"title": "Control of the US Senate (2026 Midterms)", "volume": 8400000, "volume_str": "$8,400,000", "outcomes": [{"name": "Republican", "probability": 54.0}, {"name": "Democrat", "probability": 46.0}], "url": "https://polymarket.com"},
-        {"title": "Control of the US House (2026 Midterms)", "volume": 7100000, "volume_str": "$7,100,000", "outcomes": [{"name": "Democrat", "probability": 52.5}, {"name": "Republican", "probability": 47.5}], "url": "https://polymarket.com"},
-        {"title": "Will the filibuster be abolished by 2027?", "volume": 4200000, "volume_str": "$4,200,000", "outcomes": [{"name": "No", "probability": 81.2}, {"name": "Yes", "probability": 18.8}], "url": "https://polymarket.com"}
-    ]
-}
-
-app = FastAPI(title="TROY Intelligence Engine", version="4.5")
+app = FastAPI(title="TROY Intelligence Engine", version="4.6")
 
 app.add_middleware(
     CORSMiddleware,
@@ -152,11 +127,7 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS companies (
             ticker TEXT PRIMARY KEY, founded TEXT, last_updated TEXT)''')
             
-    cursor.execute('''CREATE TABLE IF NOT EXISTS prediction_markets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, 
-            volume REAL, volume_str TEXT, outcomes TEXT, url TEXT, last_updated TEXT,
-            UNIQUE(title))''')
-            
+    # Purge old bad tickers and reset blank wiki bios
     for junk in INVALID_TICKERS:
         cursor.execute("DELETE FROM alpha_matrix_cache WHERE UPPER(TRIM(ticker)) = ?", (junk,))
     
@@ -498,7 +469,6 @@ def calculate_troy_composite_valuation(ticker: str, alpha_rating: float) -> dict
     if current_price <= 0: current_price = 100.0
     if prev_close <= 0: prev_close = current_price
 
-    # CORE FIX: Target anchored to YESTERDAY'S CLOSE so intraday dips expand the upside natively.
     upside_conviction_pct = ((alpha_rating - 5.0) / 5.0) * 0.35
     p_alpha = prev_close * (1.0 + upside_conviction_pct)
     
@@ -636,108 +606,6 @@ def sync_entity_profiles():
     conn.close()
     print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Entity Discovery Scraper Complete.")
 
-def sync_prediction_markets():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚙️ Executing Prediction Market Scraper...")
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    today_str = datetime.now().strftime("%Y-%m-%d")
-
-    url = "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=1000"
-    try:
-        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
-        if res.status_code == 200:
-            data = res.json()
-            cursor.execute("DELETE FROM prediction_markets")
-            
-            for category in ["Politics", "Economy", "Finance"]:
-                cat_lower = category.lower()
-                category_markets = []
-                seen_titles = set()
-                
-                for event in data:
-                    title = event.get('title', '').lower()
-                    tags = [str(t).lower() for t in event.get('tags', [])]
-                    
-                    is_match = False
-                    if cat_lower == "politics":
-                        if any(w in title for w in ["election", "president", "senate", "house", "nominee", "democrat", "republican", "primary", "mayor", "governor", "vote", "party"]) or "politics" in tags or "elections" in tags:
-                            is_match = True
-                    elif cat_lower == "economy":
-                        if any(w in title for w in ["fed", "inflation", "rate", "rates", "cpi", "gdp", "recession", "economy", "jobs", "unemployment", "interest", "fomc", "debt", "tariff", "tax", "bce", "ecb", "wages", "bank", "yield", "treasury", "housing", "mortgage", "trade", "deficit", "spending", "budget", "pce", "boe", "powell", "yellen", "lagarde"]) or "economy" in tags:
-                            is_match = True
-                    elif cat_lower == "finance":
-                        if any(w in title for w in ["bitcoin", "btc", "eth", "crypto", "etf", "s&p", "spx", "nasdaq", "stock", "price", "solana", "market", "dow", "ethereum", "earnings", "revenue", "ceo", "shares", "dividend", "ipo", "binance", "coinbase", "xrp", "doge", "token", "defi", "aapl", "tsla", "nvda", "msft", "jpm", "meta", "googl", "amzn"]) or "crypto" in tags or "finance" in tags:
-                            is_match = True
-                    
-                    if not is_match or event.get('title') in seen_titles: continue
-                    
-                    markets = event.get('markets', [])
-                    if not markets: continue
-                    paired = []
-                    
-                    if len(markets) == 1:
-                        market = markets[0]
-                        outcomes_str = market.get('outcomes', '[]')
-                        prices_str = market.get('outcomePrices', '[]')
-                        try:
-                            outcomes = json.loads(outcomes_str) if isinstance(outcomes_str, str) else outcomes_str
-                            prices = json.loads(prices_str) if isinstance(prices_str, str) else prices_str
-                        except Exception: continue
-                        
-                        for out, p in zip(outcomes, prices):
-                            try: prob = round(float(p)*100, 1)
-                            except: prob = 0.0
-                            paired.append({"name": str(out), "probability": prob})
-                    else:
-                        for m in markets:
-                            outcomes_str = m.get('outcomes', '[]')
-                            prices_str = m.get('outcomePrices', '[]')
-                            try:
-                                outcomes = json.loads(outcomes_str) if isinstance(outcomes_str, str) else outcomes_str
-                                prices = json.loads(prices_str) if isinstance(prices_str, str) else prices_str
-                            except Exception: continue
-                            
-                            if "Yes" in outcomes:
-                                idx = outcomes.index("Yes")
-                                try: prob = round(float(prices[idx])*100, 1) if idx < len(prices) else 0.0
-                                except: prob = 0.0
-                                
-                                m_title = m.get('groupItemTitle') or m.get('title', '')
-                                if not m_title or m_title.lower() == title: m_title = "Yes"
-                                paired.append({"name": str(m_title), "probability": prob})
-                            else:
-                                try:
-                                    prob = round(float(prices[0])*100, 1) if prices else 0.0
-                                    name = str(outcomes[0]) if outcomes else "Outcome"
-                                    paired.append({"name": name, "probability": prob})
-                                except: pass
-                    
-                    paired = sorted(paired, key=lambda x: x["probability"], reverse=True)
-                    top_outcomes = paired[:4]  
-                    if not top_outcomes: continue
-                    
-                    vol = float(event.get('volume', 0))
-                    real_title = event.get('title', 'Unknown Event')
-                    
-                    category_markets.append({
-                        "title": real_title, "volume": vol, "volume_str": f"${vol:,.0f}",
-                        "outcomes": json.dumps(top_outcomes), "url": f"https://polymarket.com/event/{event.get('slug')}"
-                    })
-                    seen_titles.add(real_title)
-                
-                category_markets = sorted(category_markets, key=lambda x: x['volume'], reverse=True)[:16]
-                for mk in category_markets:
-                    cursor.execute('''INSERT OR IGNORE INTO prediction_markets 
-                                   (category, title, volume, volume_str, outcomes, url, last_updated)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                                   (category, mk['title'], mk['volume'], mk['volume_str'], mk['outcomes'], mk['url'], today_str))
-    except Exception as e:
-        print(f"Prediction Sync Error: {e}")
-
-    conn.commit()
-    conn.close()
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Prediction Scraper Complete.")
-
 # --- API ENDPOINTS ---
 @app.get("/")
 def read_root():
@@ -746,38 +614,58 @@ def read_root():
 @app.get("/api/company/{ticker}")
 def get_company_profile(ticker: str):
     clean_sym = normalize_ticker(ticker)
-    if not clean_sym:
-        raise HTTPException(status_code=400, detail="Invalid ticker.")
+    if not clean_sym: raise HTTPException(status_code=400, detail="Invalid ticker.")
     try:
         yf_ticker = yf.Ticker(clean_sym)
         info = yf_ticker.info
         
-        hist = yf_ticker.history(period="1y")
-        if hist.empty:
-            raise ValueError("No price history found.")
-            
-        labels = hist.index.strftime('%Y-%m-%d').tolist()
-        prices = [round(x, 2) for x in hist['Close'].tolist()]
+        # DYNAMIC HISTORY GENERATION (1D, 1M, 1Y, 5Y)
+        history_data = {}
+        periods = {
+            "1D": ("1d", "5m", "%H:%M"),
+            "1M": ("1mo", "1d", "%b %d"),
+            "1Y": ("1y", "1d", "%Y-%m-%d"),
+            "5Y": ("5y", "1wk", "%Y-%m-%d")
+        }
+        
+        for p_name, (p_period, p_interval, p_fmt) in periods.items():
+            try:
+                h = yf_ticker.history(period=p_period, interval=p_interval)
+                if not h.empty:
+                    if p_name == "1D" and h.index.tz is not None:
+                        labels = h.index.tz_convert('America/New_York').strftime(p_fmt).tolist()
+                    else:
+                        labels = h.index.strftime(p_fmt).tolist()
+                    prices = [round(x, 2) for x in h['Close'].tolist()]
+                    history_data[p_name] = {"labels": labels, "prices": prices}
+                else:
+                    history_data[p_name] = {"labels": [], "prices": []}
+            except:
+                history_data[p_name] = {"labels": [], "prices": []}
         
         raw_summary = info.get("longBusinessSummary", "Corporate filing data currently unavailable.")
         sentences = re.split(r'(?<=[.!?]) +', raw_summary)
         summary = " ".join(sentences[:3])
         
-        div_yield = info.get('dividendYield') or info.get('trailingAnnualDividendYield')
-        div_rate = info.get('dividendRate') or info.get('trailingAnnualDividendRate')
-        
         current_price = info.get('currentPrice', info.get('regularMarketPrice', 0.0))
         if current_price <= 0:
             try: current_price = float(yf_ticker.fast_info['last_price'])
             except: current_price = 100.0
+
+        # BULLETPROOF DIVIDEND YIELD CALCULATION
+        div_yield = info.get('dividendYield')
+        if div_yield is None:
+            div_yield = info.get('trailingAnnualDividendYield')
             
         if div_yield is not None:
-            if div_yield > 0.5: div_str = f"{div_yield:.2f}%"
+            if div_yield > 1.0: div_str = f"{div_yield:.2f}%"
             else: div_str = f"{div_yield * 100:.2f}%"
-        elif div_rate and current_price > 0:
-            div_str = f"{(div_rate / current_price) * 100:.2f}%"
         else:
-            div_str = "0.00%"
+            div_rate = info.get('dividendRate', info.get('trailingAnnualDividendRate', 0))
+            if div_rate and current_price > 0:
+                div_str = f"{(div_rate / current_price) * 100:.2f}%"
+            else:
+                div_str = "0.00%"
         
         emp = info.get("fullTimeEmployees")
         emp_str = f"{emp:,}" if emp else "N/A"
@@ -808,10 +696,7 @@ def get_company_profile(ticker: str):
             "low_52": f"${low:,.2f}" if low else "N/A",
             "summary": summary,
             "valuation": valuation_data,
-            "price_history": {
-                "labels": labels,
-                "prices": prices
-            }
+            "price_history": history_data
         }
     except Exception as e:
         raise HTTPException(status_code=404, detail="Company profile not found.")
@@ -819,12 +704,10 @@ def get_company_profile(ticker: str):
 @app.get("/api/scan/{ticker}")
 def scan_ticker(ticker: str):
     clean_sym = normalize_ticker(ticker)
-    if not clean_sym:
-        raise HTTPException(status_code=400, detail="Invalid ticker.")
+    if not clean_sym: raise HTTPException(status_code=400, detail="Invalid ticker.")
         
     raw_df = get_unified_flow_data(clean_sym, lookback_days=365)
-    if raw_df.empty: 
-        raise HTTPException(status_code=404, detail="No records found.")
+    if raw_df.empty: raise HTTPException(status_code=404, detail="No records found.")
         
     scored_df = apply_alpha_scoring_math(raw_df)
     rating, macro_signal = get_normalized_signal(scored_df["Alpha_Score"].sum())
@@ -837,19 +720,16 @@ def scan_ticker(ticker: str):
         try:
             current_price = float(yf_ticker.fast_info['last_price'])
             prev_close = float(yf_ticker.fast_info['previous_close'])
-        except Exception:
+        except:
             info = yf_ticker.info
             current_price = info.get('currentPrice', info.get('regularMarketPrice', 0.0))
             prev_close = info.get('previousClose', info.get('regularMarketPreviousClose', 0.0))
             
         company_name = yf_ticker.info.get('shortName', yf_ticker.info.get('longName', f"{clean_sym} Corp."))
-            
         if current_price and prev_close and prev_close > 0:
             daily_change = ((current_price - prev_close) / prev_close) * 100
-        else:
-            daily_change = 0.0
-            
-    except Exception:
+        else: daily_change = 0.0
+    except:
         company_name = f"{clean_sym} Corp."
         current_price = 0.0
         daily_change = 0.0
@@ -973,10 +853,8 @@ def get_profile(entity_name: str):
         rng = random.Random(h_int)
         pool = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "BRK-B", "LLY", "JPM", "V", "MA", "AVGO", "TSLA", "WMT", "UNH"]
         selected_tickers = rng.sample(pool, 7)
-        
         sim_sectors = ["Technology", "Healthcare", "Financial Services", "Consumer Cyclical", "Energy"]
         entity_sectors = rng.sample(sim_sectors, 2)
-        
         for t in selected_tickers:
             val = rng.uniform(100_000_000, 4_000_000_000)
             holdings[t] = val
@@ -1017,7 +895,6 @@ def get_profile(entity_name: str):
         pac_money = "N/A (Corporate Entity)"
     elif role == "Institutional Fund":
         pac_money = "N/A (Institutional Entity)"
-        
         aum_val = (h_int % 80) + 15
         aum_str = f"${aum_val}.{h_int%9} Billion"
         
@@ -1114,38 +991,31 @@ def get_rankings():
     else:
         strong_buys = sorted(strong_buys, key=lambda x: (x['alpha_rating'], x['upside']), reverse=True)
 
-    # --- TOP 10 PORTFOLIO CHART GENERATOR (Anchored dynamically to 24/08/2026) ---
     chart_labels = []
     port_returns = []
     spy_returns = []
     
     try:
-        # Establish anchor epoch
         start_date = datetime(2026, 8, 24, 9, 30)
         now = datetime.now()
         if now < start_date:
             now = start_date + timedelta(hours=4) 
             
-        # Build strict hourly trading progression array from anchor date
         current = start_date
         while current <= now:
             if current.weekday() < 5 and 9 <= current.hour <= 16:
                 chart_labels.append(current.strftime('%b %d, %H:%M'))
             current += timedelta(hours=1)
             
-        # Minimum baseline fallback for empty arrays
         if not chart_labels:
             chart_labels = ["Aug 24, 09:30", "Aug 24, 12:00", "Aug 24, 16:00"]
             
-        # Fetch ONLY the current perfect 10.0 ratings to generate baseline trend
         top_10 = [r for r in strong_buys if r['alpha_rating'] >= 10.0]
         if not top_10: top_10 = strong_buys[:5]
         
-        # Determine aggregate organic trajectory from live daily changes
         avg_port_change = sum([r['daily_change'] for r in top_10]) / len(top_10) if top_10 else 1.5
         avg_spy_change = avg_port_change / 2.5
         
-        # Extrapolate performance over days elapsed since epoch
         days_elapsed = max(1, (now - start_date).days)
         target_port = avg_port_change * days_elapsed
         target_spy = avg_spy_change * days_elapsed
@@ -1156,7 +1026,7 @@ def get_rankings():
         
         port_val = 0.0
         spy_val = 0.0
-        rng = random.Random(42) # Consistent noise generation per refresh
+        rng = random.Random(42)
         
         for i in range(steps):
             if i == steps - 1:
@@ -1168,7 +1038,6 @@ def get_rankings():
                 port_returns.append(round(port_val, 2))
                 spy_returns.append(round(spy_val, 2))
     except Exception as e:
-        print("Rankings Chart Error:", e)
         chart_labels = ["Aug 24", "Today"]
         port_returns = [0.0, 0.0]
         spy_returns = [0.0, 0.0]
@@ -1304,45 +1173,6 @@ def get_user_portfolio(username: str):
             })
 
     return {"portfolio": portfolio_items}
-
-@app.get("/api/predictions/{category}")
-def get_predictions(category: str):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT title, volume, volume_str, outcomes, url FROM prediction_markets WHERE category = ? ORDER BY volume DESC LIMIT 16", (category,))
-    rows = cursor.fetchall()
-    conn.close()
-    
-    predictions = []
-    seen = set()
-    for row in rows:
-        title = row[0]
-        if title not in seen:
-            predictions.append({
-                "title": title,
-                "volume": row[1],
-                "volume_str": row[2],
-                "outcomes": json.loads(row[3]),
-                "url": row[4]
-            })
-            seen.add(title)
-            
-    if len(predictions) < 16:
-        fb_list = FALLBACK_PREDICTIONS.get(category, FALLBACK_PREDICTIONS["Politics"])
-        for fb in fb_list:
-            if len(predictions) >= 16:
-                break
-            if fb["title"] not in seen:
-                predictions.append({
-                    "title": fb["title"],
-                    "volume": fb["volume"],
-                    "volume_str": fb["volume_str"],
-                    "outcomes": fb["outcomes"],
-                    "url": fb["url"]
-                })
-                seen.add(fb["title"])
-        
-    return {"category": category, "predictions": predictions[:16]}
 
 @app.get("/api/news")
 def get_news():
@@ -1515,11 +1345,9 @@ async def notification_stream(username: str):
 if __name__ == "__main__":
     scheduler = BackgroundScheduler()
     scheduler.add_job(sync_entity_profiles, 'cron', hour=0, minute=0)
-    scheduler.add_job(sync_prediction_markets, 'cron', hour=0, minute=5)
     scheduler.start()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(sync_entity_profiles)
-        executor.submit(sync_prediction_markets)
 
     uvicorn.run(app, host="localhost", port=8000)

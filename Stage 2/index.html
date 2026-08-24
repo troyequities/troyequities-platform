@@ -159,7 +159,6 @@
                 </div>
                 <a onclick="loadRankings()">RANKINGS</a>
                 <a onclick="loadNews()">NEWS</a>
-                <a onclick="loadPredictions('Politics')">PREDICTIONS</a>
             </div>
         </div>
         <div class="nav-right">
@@ -229,8 +228,8 @@
                 <div class="pill-card" onclick="openCorporateInsidersView()">INSIDERS</div>
                 <div class="pill-card" onclick="openHedgeFundsView()">HEDGE FUNDS</div>
                 <div class="pill-card" onclick="loadNews()">KEY MOVEMENTS</div>
-                <div class="pill-card" onclick="loadPredictions('Politics')">MARKET SENTIMENT</div>
-                <div class="pill-card" onclick="loadNews()">MACRO DATA</div>
+                <div class="pill-card" onclick="loadRankings()">TOP RANKINGS</div>
+                <div class="pill-card" onclick="loadPortfolio()">MY PORTFOLIO</div>
             </div>
         </div>
 
@@ -379,6 +378,22 @@
         </div>
     </main>
 
+    <!-- VIEW 6: GENERAL INSIDERS (Search Page) -->
+    <main id="insiders-view" class="view-section">
+        <h1 class="ticker-header">Insider & Politician Database</h1>
+        <div class="main-search-container" style="max-width: 1000px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
+            <input type="text" id="in-name" placeholder="Name" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <select id="in-party" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
+                <option value="">Any Party</option><option value="Democrat">Democrat</option><option value="Republican">Republican</option>
+            </select>
+            <input type="text" id="in-state" placeholder="State (e.g. CA)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 150px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <input type="text" id="in-ticker" placeholder="Ticker" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 120px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
+            <button class="main-search-btn" onclick="loadInsiders()">SEARCH</button>
+        </div>
+        <h3 class="metric-title" style="margin-bottom: 1rem;">DIRECTORY RESULTS</h3>
+        <div id="insiders-grid" class="grid-6-col" style="margin-top: 0; margin-bottom: 4rem;"></div>
+    </main>
+
     <!-- VIEW 6A: POLITICAL INSIDERS -->
     <main id="political-insiders-view" class="view-section">
         <h1 class="ticker-header">Political Insiders</h1>
@@ -416,20 +431,6 @@
     <main id="news-view" class="view-section">
         <h1 class="ticker-header">Live Market Intelligence</h1>
         <div id="news-grid" class="grid-container"></div>
-    </main>
-
-    <!-- VIEW 8: PREDICTIONS (Polymarket Gamma API Integration) -->
-    <main id="predictions-view" class="view-section">
-        <h1 class="ticker-header">Global Prediction Markets</h1>
-        <p style="color:var(--text-muted); margin-bottom:2rem;">Live implied probability metrics mapped directly from Polymarket order books.</p>
-        
-        <div class="filter-bar" style="margin-bottom: 2rem;">
-            <button class="filter-btn active" id="btn-pred-Politics" onclick="loadPredictions('Politics')">Politics</button>
-            <button class="filter-btn" id="btn-pred-Economy" onclick="loadPredictions('Economy')">Economy</button>
-            <button class="filter-btn" id="btn-pred-Finance" onclick="loadPredictions('Finance')">Finance</button>
-        </div>
-
-        <div id="predictions-grid" class="grid-container"></div>
     </main>
 
     <!-- VIEW 9: COMPANIES (Search Page) WITH CENTERED ALIGNMENT -->
@@ -537,7 +538,13 @@
 
         <div class="chart-box" style="margin-top: 2rem; width: 100%;">
             <div style="display:flex; justify-content:space-between; width:100%; margin-bottom: 1.5rem;">
-                <h3 class="metric-title">1-YEAR HISTORICAL PRICE ACTION</h3>
+                <h3 class="metric-title">HISTORICAL PRICE ACTION</h3>
+                <div>
+                    <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="updateCompanyChartPeriod('1D')">1D</button>
+                    <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="updateCompanyChartPeriod('1M')">1M</button>
+                    <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="updateCompanyChartPeriod('1Y')">1Y</button>
+                    <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem;" onclick="updateCompanyChartPeriod('5Y')">5Y</button>
+                </div>
             </div>
             <div style="width: 100%; height: 350px;">
                 <canvas id="companyPriceChart"></canvas>
@@ -573,7 +580,7 @@
         </div>
     </main>
 
-    <!-- VIEW 12: RANKINGS ENGINE WITH TOP PERFORMANCE CHART -->
+    <!-- VIEW 12: RANKINGS ENGINE -->
     <main id="rankings-view" class="view-section">
         <h1 class="ticker-header">Top Conviction Rankings</h1>
         <p style="color:var(--text-muted); margin-bottom:2rem;">The highest-rated active "Strong Buy" equities calculated autonomously via tracked lawmaker and insider capital flows. <b>Performance tracking initialized 24/08/2026.</b></p>
@@ -609,22 +616,6 @@
         </div>
     </main>
 
-    <!-- VIEW 6: GENERAL INSIDERS (Search Page) -->
-    <main id="insiders-view" class="view-section">
-        <h1 class="ticker-header">Insider & Politician Database</h1>
-        <div class="main-search-container" style="max-width: 1000px; margin-bottom: 2rem; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
-            <input type="text" id="in-name" placeholder="Name" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <select id="in-party" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') loadInsiders()">
-                <option value="">Any Party</option><option value="Democrat">Democrat</option><option value="Republican">Republican</option>
-            </select>
-            <input type="text" id="in-state" placeholder="State (e.g. CA)" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 150px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <input type="text" id="in-ticker" placeholder="Ticker" class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle); max-width: 120px;" onkeydown="if(event.key === 'Enter') loadInsiders()">
-            <button class="main-search-btn" onclick="loadInsiders()">SEARCH</button>
-        </div>
-        <h3 class="metric-title" style="margin-bottom: 1rem;">DIRECTORY RESULTS</h3>
-        <div id="insiders-grid" class="grid-6-col" style="margin-top: 0; margin-bottom: 4rem;"></div>
-    </main>
-
     <!-- NOTIFICATION CONTAINER -->
     <div id="toast-container"></div>
 
@@ -632,9 +623,10 @@
         let lineChartInstance = null; 
         let pieChartInstance = null;
         let compChartInstance = null;
-        let rankingsChartInstance = null; // New chart variable
+        let rankingsChartInstance = null;
         let currentUser = localStorage.getItem('troy_user');
         let eventSource = null;
+        let currentCompanyHistory = null; // Stores multi-timeframe chart data
 
         function switchView(viewId) {
             document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
@@ -829,22 +821,38 @@
 
                 document.getElementById('val-pe-ratio').textContent = data.valuation.pe_ratio;
 
-                renderCompanyChart(data.price_history);
+                // Cache multi-timeframe history and render 1Y default
+                currentCompanyHistory = data.price_history;
+                updateCompanyChartPeriod('1Y');
+
             } catch (error) {
                 document.getElementById('comp-name').textContent = "DATA UNAVAILABLE";
                 document.getElementById('comp-summary').textContent = "Failed to pull company profile for " + ticker + ".";
             }
         }
 
+        // Toggles chart display between 1D, 1M, 1Y, 5Y
+        function updateCompanyChartPeriod(period) {
+            if (!currentCompanyHistory || !currentCompanyHistory[period]) return;
+            const historyData = currentCompanyHistory[period];
+            renderCompanyChart(historyData);
+        }
+
         function renderCompanyChart(historyData) {
             const ctx = document.getElementById('companyPriceChart').getContext('2d');
             if (compChartInstance) { compChartInstance.destroy(); }
+            
+            if (!historyData.labels || historyData.labels.length === 0) {
+                // If API fails to return intra-day data, render an empty chart gracefully
+                historyData = { labels: ["Market Closed"], prices: [0] };
+            }
+            
             compChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: historyData.labels,
                     datasets: [{
-                        label: 'Closing Price ($)',
+                        label: 'Price ($)',
                         data: historyData.prices,
                         borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
                         borderWidth: 2, fill: true, tension: 0.1, pointRadius: 0, pointHoverRadius: 4
@@ -857,6 +865,57 @@
                     scales: {
                         x: { ticks: { color: '#a1a1aa', maxTicksLimit: 12 }, grid: { display: false } },
                         y: { ticks: { color: '#a1a1aa', callback: function(value) { return "$" + value; } }, grid: { color: '#27272a' } }
+                    }
+                }
+            });
+        }
+
+        function renderRankingsChart(chartData) {
+            const ctx = document.getElementById('rankingsChart').getContext('2d');
+            if (rankingsChartInstance) { rankingsChartInstance.destroy(); }
+            rankingsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'TROY 10/10 Index (%)',
+                            data: chartData.portfolio,
+                            borderColor: '#10b981', 
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3, 
+                            fill: true, 
+                            tension: 0.4, 
+                            pointRadius: 0,
+                            pointHitRadius: 10
+                        },
+                        {
+                            label: 'S&P 500 (%)',
+                            data: chartData.spy,
+                            borderColor: '#a1a1aa', 
+                            backgroundColor: 'transparent',
+                            borderWidth: 2, 
+                            fill: false, 
+                            tension: 0.4, 
+                            borderDash: [5, 5], 
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } },
+                        tooltip: { backgroundColor: 'rgba(18, 18, 20, 0.9)', titleColor: '#fff', bodyColor: '#fff', borderColor: '#27272a', borderWidth: 1, padding: 10 }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: 'rgba(39, 39, 42, 0.5)' } },
+                        y: { 
+                            ticks: { color: '#a1a1aa', callback: function(value) { return value + "%"; } }, 
+                            grid: { color: 'rgba(39, 39, 42, 0.5)' } 
+                        }
                     }
                 }
             });
@@ -1041,83 +1100,6 @@
             });
         }
 
-        function renderRankingsChart(chartData) {
-            const ctx = document.getElementById('rankingsChart').getContext('2d');
-            if (rankingsChartInstance) { rankingsChartInstance.destroy(); }
-            rankingsChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [
-                        {
-                            label: 'TROY 10/10 Index (%)',
-                            data: chartData.portfolio,
-                            borderColor: '#10b981', 
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 3, 
-                            fill: true, 
-                            tension: 0.4, 
-                            pointRadius: 0,
-                            pointHitRadius: 10
-                        },
-                        {
-                            label: 'S&P 500 (%)',
-                            data: chartData.spy,
-                            borderColor: '#a1a1aa', 
-                            backgroundColor: 'transparent',
-                            borderWidth: 2, 
-                            fill: false, 
-                            tension: 0.4, 
-                            borderDash: [5, 5], 
-                            pointRadius: 0
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } },
-                        tooltip: { backgroundColor: 'rgba(18, 18, 20, 0.9)', titleColor: '#fff', bodyColor: '#fff', borderColor: '#27272a', borderWidth: 1, padding: 10 }
-                    },
-                    scales: {
-                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: 'rgba(39, 39, 42, 0.5)' } },
-                        y: { 
-                            ticks: { color: '#a1a1aa', callback: function(value) { return value + "%"; } }, 
-                            grid: { color: 'rgba(39, 39, 42, 0.5)' } 
-                        }
-                    }
-                }
-            });
-        }
-
-        async function loadNews() {
-            switchView('news-view');
-            const grid = document.getElementById('news-grid');
-            grid.innerHTML = '<p>Loading live Financial Times RSS feed...</p>';
-            try {
-                const res = await fetch('http://localhost:8000/api/news');
-                const data = await res.json();
-                grid.innerHTML = '';
-                data.articles.forEach(article => {
-                    const imgHtml = article.image_url ? `<img src="${article.image_url}" class="news-card-img" alt="Thumbnail" onerror="this.src='https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=600'">` : '';
-                    grid.innerHTML += `
-                        <div class="news-card" onclick="window.open('${article.link}', '_blank')">
-                            ${imgHtml}
-                            <div class="news-card-content">
-                                <div class="news-meta">${article.source} | ${article.pubDate}</div>
-                                <div class="news-title" style="margin-top:0.5rem;">${article.title}</div>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (err) {}
-        }
-
         async function loadRankings() {
             switchView('rankings-view');
             const tbody = document.getElementById('rankings-body');
@@ -1126,7 +1108,6 @@
                 const res = await fetch('http://localhost:8000/api/rankings');
                 const data = await res.json();
                 
-                // RENDER THE NEW TOP PORTFOLIO CHART
                 if (data.chart_data && data.chart_data.labels.length > 0) {
                     renderRankingsChart(data.chart_data);
                 }
@@ -1260,64 +1241,6 @@
                 }
             } catch (err) {
                 console.error("Insiders Error:", err);
-            }
-        }
-
-        async function loadPredictions(category = 'Politics') {
-            switchView('predictions-view');
-            
-            ['Politics', 'Economy', 'Finance'].forEach(cat => {
-                const btn = document.getElementById(`btn-pred-${cat}`);
-                if (btn) btn.classList.remove('active');
-            });
-            const activeBtn = document.getElementById(`btn-pred-${category}`);
-            if (activeBtn) activeBtn.classList.add('active');
-
-            const grid = document.getElementById('predictions-grid');
-            grid.innerHTML = '<p>Connecting to Polymarket Gamma API...</p>';
-
-            try {
-                const res = await fetch(`http://localhost:8000/api/predictions/${category}`);
-                const data = await res.json();
-                grid.innerHTML = '';
-                
-                data.predictions.forEach(p => {
-                    let outcomeHtml = '';
-                    p.outcomes.forEach(out => {
-                        let barColor = 'var(--accent-brand)';
-                        let nameLower = out.name.toLowerCase();
-                        if (nameLower === 'yes') barColor = 'var(--accent-buy)';
-                        else if (nameLower === 'no') barColor = 'var(--accent-sell)';
-                        else if (nameLower.includes('democrat') || nameLower.includes('harris') || nameLower.includes('newsom')) barColor = 'var(--democrat-blue)';
-                        else if (nameLower.includes('republican') || nameLower.includes('trump') || nameLower.includes('desantis') || nameLower.includes('vance')) barColor = 'var(--republican-red)';
-                        else if (nameLower.includes('independent') || nameLower.includes('rfk')) barColor = 'var(--independent-grey)';
-                        
-                        outcomeHtml += `
-                            <div style="margin-bottom:0.8rem;">
-                                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.3rem;">
-                                    <span style="color:var(--text-pure); font-weight:500;">${out.name}</span><span style="font-weight:600; color:var(--text-muted);">${out.probability}%</span>
-                                </div>
-                                <div style="width:100%; background:var(--border-subtle); height:6px; border-radius:3px; overflow:hidden;">
-                                    <div style="width:${out.probability}%; background:${barColor}; height:100%; border-radius:3px;"></div>
-                                </div>
-                            </div>
-                        `;
-                    });
-
-                    grid.innerHTML += `
-                        <div class="metric-card" style="display:flex; flex-direction:column; justify-content:space-between; cursor:pointer; transition:transform 0.2s, border-color 0.2s;" onclick="window.open('${p.url}', '_blank')" onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--text-muted)';" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='var(--border-subtle)';">
-                            <div>
-                                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.8rem; text-transform:uppercase; font-weight:700;">Vol: ${p.volume_str}</div>
-                                <div style="font-weight:600; font-size:1.05rem; margin-bottom:1.5rem; line-height:1.4;">${p.title}</div>
-                            </div>
-                            <div>
-                                ${outcomeHtml}
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (e) {
-                grid.innerHTML = '<p style="color:var(--accent-sell);">Failed to load prediction markets. Polymarket API may be rate-limiting.</p>';
             }
         }
         
