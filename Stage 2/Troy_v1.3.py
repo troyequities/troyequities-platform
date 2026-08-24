@@ -28,7 +28,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 warnings.filterwarnings("ignore", category=UserWarning, module='wikipedia')
 try:
     import wikipedia
-    wikipedia.set_user_agent("TroyQuant/4.2 (Quantitative Intelligence Research) contact@troyquant.com")
+    wikipedia.set_user_agent("TroyQuant/4.3 (Quantitative Intelligence Research) contact@troyquant.com")
 except ImportError:
     pass
 
@@ -72,7 +72,7 @@ FALLBACK_PREDICTIONS = {
     ]
 }
 
-app = FastAPI(title="TROY Intelligence Engine", version="4.2")
+app = FastAPI(title="TROY Intelligence Engine", version="4.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -106,9 +106,11 @@ def is_valid_password(pwd: str) -> bool:
     return True
 
 def normalize_ticker(t: str) -> str:
-    if not t: return ""
+    if not t:
+        return ""
     clean = str(t).upper().strip().replace("$", "").replace(" ", "")
-    if clean in INVALID_TICKERS or len(clean) > 8: return ""
+    if clean in INVALID_TICKERS or len(clean) > 8:
+        return ""
     return clean
 
 def normalize_role(role_raw: str, bio_raw: str, party_raw: str) -> str:
@@ -166,7 +168,7 @@ def init_db():
 
 init_db()
 
-# --- CORE FUNCTIONS ---
+# --- CORE DATA INGESTION & VALUATION FUNCTIONS ---
 
 def get_safe_bio(name: str, role_keyword: str) -> str:
     try:
@@ -494,10 +496,20 @@ def calculate_troy_composite_valuation(ticker: str, alpha_rating: float) -> dict
         except Exception:
             current_price = 100.0  
 
-    # P_ALPHA: Direct conviction pricing curve (Rating 1-10 translates to -25% to +35% upside)
+    # CORE FIX: Anchor target price to 50-day moving average so daily changes actively affect implied upside
+    try:
+        ma_50 = float(yf_ticker.fast_info['fifty_day_average'])
+    except Exception:
+        ma_50 = info.get('fiftyDayAverage', current_price)
+        
+    if ma_50 <= 0:
+        ma_50 = current_price
+
+    # P_ALPHA: Direct conviction pricing curve (Rating 1-10 translates to -25% to +35% upside structurally)
     upside_conviction_pct = ((alpha_rating - 5.0) / 5.0) * 0.35
-    p_alpha = current_price * (1.0 + upside_conviction_pct)
+    p_alpha = ma_50 * (1.0 + upside_conviction_pct)
     
+    # Calculate mathematically sound implied upside against today's dynamic price
     implied_upside = round(((p_alpha - current_price) / current_price) * 100, 2) if current_price > 0 else 0.0
 
     # P/E Extraction
@@ -610,7 +622,7 @@ def sync_entity_profiles():
 
     try:
         wiki_url = "https://en.wikipedia.org/wiki/List_of_hedge_funds"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
         res = requests.get(wiki_url, headers=headers, timeout=10)
         if res.status_code == 200:
             tables = pd.read_html(io.StringIO(res.text))
@@ -628,7 +640,21 @@ def sync_entity_profiles():
                                            (clean_name, clean_name, "Institutional Fund", "Top-tier institutional asset management firm and global hedge fund.", "", "Unknown", today_str))
                     break
     except Exception as e:
-        pass
+        fallback_funds = [
+            "Bridgewater Associates", "Renaissance Technologies", "Millennium Management", "Citadel", 
+            "Two Sigma", "Elliott Management", "Pershing Square Capital Management", "AQR Capital Management", 
+            "Point72 Asset Management", "Balyasny Asset Management", "D. E. Shaw & Co.", "Baupost Group", 
+            "Farallon Capital", "Man Group", "Tiger Global Management", "Winton Group", "Marshall Wace", 
+            "Davidson Kempner", "Coatue Management", "Appaloosa Management", "Viking Global Investors",
+            "Capula Investment Management", "Third Point", "Brevan Howard"
+        ]
+        for fund in fallback_funds:
+            cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (fund,))
+            if not cursor.fetchone():
+                cursor.execute('''INSERT INTO entity_profiles 
+                               (clean_name, original_name, role, bio, image_url, party, last_updated) 
+                               VALUES (?, ?, ?, ?, ?, ?, ?)''', 
+                               (fund, fund, "Institutional Fund", "Top-tier institutional asset management firm and global hedge fund.", "", "Unknown", today_str))
 
     conn.commit()
     conn.close()
@@ -761,7 +787,6 @@ def get_company_profile(ticker: str):
         sentences = re.split(r'(?<=[.!?]) +', raw_summary)
         summary = " ".join(sentences[:3])
         
-        # Robust Dividend Yield Extraction
         div_yield = info.get('dividendYield') or info.get('trailingAnnualDividendYield')
         div_rate = info.get('dividendRate') or info.get('trailingAnnualDividendRate')
         
@@ -1300,7 +1325,7 @@ def get_news():
     def fetch_feed(source_name, url):
         local_articles = []
         try:
-            r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}, timeout=5)
+            r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
             root = ET.fromstring(r.content)
             ns = {'media': 'http://search.yahoo.com/mrss/'}
             
