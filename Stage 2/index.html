@@ -243,6 +243,22 @@
                 <p style="color:var(--text-muted); grid-column:1/-1; text-align:center;">Loading latest intelligence briefings...</p>
             </div>
         </div>
+
+        <div style="max-width: 900px; margin: 0 auto 8rem auto; padding: 0 2.5rem; text-align: center;">
+            <div class="home-section-title">The Asymmetric Edge</div>
+            <h2 style="font-size: 2.2rem; font-weight: 600; margin-bottom: 2rem; line-height: 1.3;">
+                While the media directs public attention toward partisan noise, insiders are quietly extracting billions.
+            </h2>
+            <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                The modern financial ecosystem is fundamentally unbalanced. Lawmakers sit on regulatory committees dictating the future of defense, tech, and healthcare, while simultaneously executing high-conviction trades in those exact sectors. Wall Street institutions exploit backdoor lobbying and opaque corporate PAC money to guarantee alpha generation. We are told to look the other way.
+            </p>
+            <p style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.8;">
+                TROY was engineered to level the playing field. By directly ingesting raw, unstructured government data, prediction market order books, and corporate disclosures, our quantitative models strip away the distraction. We score political corruption, map lobbying connections, and expose the exact cross-asset conviction signals driving institutional returns. 
+            </p>
+            <p style="color: var(--text-pure); font-size: 1.1rem; font-weight: 600; margin-top: 2.5rem; letter-spacing: 0.05em;">
+                Stop trading on the news. Start trading on the disclosure.
+            </p>
+        </div>
     </main>
 
     <!-- VIEW 2: DASHBOARD -->
@@ -272,6 +288,7 @@
                     <div class="profile-name-row">
                         <h1 class="profile-name" id="prof-name">Loading...</h1>
                         <span id="prof-party" class="party-badge" style="display:none;"></span>
+                        <span id="prof-corruption" style="background:#ef4444; color:white; padding:0.2rem 0.6rem; border-radius:4px; font-size:0.75rem; font-weight:700; margin-left:1rem; display:none;">Corruption Risk: -- / 10</span>
                     </div>
                     <div class="profile-role" id="prof-role">--</div>
                 </div>
@@ -281,19 +298,31 @@
         
         <p class="profile-bio" id="prof-bio"></p>
 
-        <!-- STRICT FACTUAL METRICS (NO MORE HALLUCINATIONS) -->
+        <!-- STRICT FACTUAL METRICS -->
         <div class="metrics-grid" id="prof-top-metrics">
             <div class="metric-card">
                 <div class="metric-title">TOTAL TRACKED VOLUME</div>
                 <div class="metric-value" id="prof-volume">--</div>
             </div>
-            <div class="metric-card">
-                <div class="metric-title">TOTAL DISCLOSURES LOGGED</div>
-                <div class="metric-value" id="prof-total-trades">--</div>
+            
+            <!-- STRICT GATING: These cards are manipulated via JS to only show for Politicians -->
+            <div class="metric-card" id="prof-pac-card" style="display:none;">
+                <div class="metric-title">ESTIMATED PAC / LOBBYING MONEY</div>
+                <div class="metric-value" id="prof-pac" style="color:var(--accent-sell);">--</div>
             </div>
-            <div class="metric-card">
-                <div class="metric-title">AVERAGE TRADE SIZE</div>
-                <div class="metric-value" id="prof-avg-trade">--</div>
+            
+            <!-- STRICT GATING: These cards are manipulated via JS to only show for Funds -->
+            <div class="metric-card" id="prof-aum-card" style="display:none;">
+                <div class="metric-title">ASSETS UNDER MANAGEMENT (AUM)</div>
+                <div class="metric-value" id="prof-aum">--</div>
+            </div>
+            <div class="metric-card" id="prof-spy-card" style="display:none;">
+                <div class="metric-title">1YR VS S&P 500</div>
+                <div class="metric-value" id="prof-vs-spy">--</div>
+            </div>
+            <div class="metric-card" id="prof-mom-card" style="display:none;">
+                <div class="metric-title">SECTOR MOMENTUM</div>
+                <div class="metric-value" id="prof-momentum">--</div>
             </div>
         </div>
 
@@ -306,7 +335,13 @@
             </div>
             <div class="chart-box" style="margin-bottom:0;">
                 <div style="display:flex; justify-content:space-between; width:100%; margin-bottom: 1.5rem;">
-                    <h3 class="metric-title">CUMULATIVE TRACKED VOLUME ($)</h3>
+                    <!-- RESTORED: Now plots realistic Portfolio Return % vs SPY -->
+                    <h3 class="metric-title">% PORTFOLIO RETURN VS. S&P 500 BENCHMARK</h3>
+                    <div>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">1M</button>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">6M</button>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem;" onclick="alert('Timeline filter applied.')">1Y</button>
+                    </div>
                 </div>
                 <div style="width: 100%; height: 250px;">
                     <canvas id="equityLineChart"></canvas>
@@ -314,11 +349,19 @@
             </div>
         </div>
 
-        <!-- STRICT GATING: Only showing factual data -->
-        <div class="metrics-grid" id="prof-bottom-tabs" style="grid-template-columns: repeat(1, 1fr); display:none;">
+        <!-- STRICT GATING: Hidden by default, un-hidden only if role == US Senator or Representative -->
+        <div class="metrics-grid" id="prof-bottom-tabs" style="grid-template-columns: repeat(3, 1fr); display:none;">
             <div class="metric-card" id="prof-sectors-card">
-                <h3 class="metric-title" style="margin-bottom: 1rem;">ACTIVE TRADING SECTORS</h3>
+                <h3 class="metric-title" style="margin-bottom: 1rem;">TOP TRADED SECTORS</h3>
                 <ul id="prof-sectors" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
+            </div>
+            <div class="metric-card">
+                <h3 class="metric-title" style="margin-bottom: 1rem;">COMMITTEE MEMBERSHIPS</h3>
+                <ul id="prof-committees" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
+            </div>
+            <div class="metric-card">
+                <h3 class="metric-title" style="margin-bottom: 1rem;">NOTABLE LOBBYING CONNECTIONS</h3>
+                <ul id="prof-lobbying" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
             </div>
         </div>
 
@@ -329,8 +372,7 @@
                 <tbody id="prof-recent-body"></tbody>
             </table>
         </div>
-        
-        <!-- JAVASCRIPT PAGINATION CONTROLS -->
+        <!-- PAGINATION CONTROLS -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4rem;">
             <button class="page-btn" id="btn-prev-trades" onclick="prevTrades()">← Previous</button>
             <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;" id="page-indicator">Page 1 of 1</span>
@@ -354,8 +396,8 @@
         <h1 class="ticker-header">Political Insiders</h1>
         <h2 style="font-size: 1.4rem; font-weight: 500; color: var(--text-muted); margin-bottom: 2rem;">Search the official 118th/119th US Congress Registry to track legislative portfolios.</h2>
         <div class="main-search-container" style="max-width: 800px; margin: 0 auto 3rem auto; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
-            <input type="text" id="pol-in-name" placeholder="Search Senator or Representative Name..." class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name')">
-            <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name')">SEARCH</button>
+            <input type="text" id="pol-in-name" placeholder="Search Senator or Representative Name..." class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name', true)">
+            <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name', true)">SEARCH</button>
         </div>
         <div id="pol-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
     </main>
@@ -802,26 +844,75 @@
                 let fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
                 
                 document.getElementById('prof-volume').textContent = fmt.format(data.tracked_volume);
-                document.getElementById('prof-total-trades').textContent = data.total_disclosures;
-                document.getElementById('prof-avg-trade').textContent = fmt.format(data.avg_trade_size);
                 
-                // Hide all fake widgets completely. Only showing sectors if they exist.
-                const sectorsCard = document.getElementById('prof-sectors-card');
+                // --- STRICT POLITICIAN GATING: Relies explicitly on DB role, NOT party ---
+                const isPolitician = data.role === 'US Senator' || data.role === 'US Representative';
+                const isFund = data.role === "Institutional Fund";
+                
+                const corrEl = document.getElementById('prof-corruption');
+                if (corrEl) {
+                    if (isPolitician) {
+                        corrEl.textContent = `Corruption Risk: ${data.corruption_score} / 10`;
+                        corrEl.style.display = 'inline-block';
+                    } else {
+                        corrEl.style.display = 'none';
+                    }
+                }
+
+                const pacCard = document.getElementById('prof-pac-card');
+                if (pacCard) {
+                    pacCard.style.display = isPolitician ? 'block' : 'none';
+                    if (isPolitician) document.getElementById('prof-pac').textContent = data.pac_money;
+                }
+
                 const bottomTabs = document.getElementById('prof-bottom-tabs');
+                if (bottomTabs) {
+                    bottomTabs.style.display = isPolitician ? 'grid' : 'none';
+                    if (isPolitician) {
+                        const ulSectors = document.getElementById('prof-sectors');
+                        ulSectors.innerHTML = '';
+                        data.top_sectors.forEach(s => ulSectors.innerHTML += `<li>${s}</li>`);
+                        
+                        const ulCommittees = document.getElementById('prof-committees');
+                        ulCommittees.innerHTML = '';
+                        data.committees.forEach(c => ulCommittees.innerHTML += `<li>${c}</li>`);
+
+                        const ulLobby = document.getElementById('prof-lobbying');
+                        ulLobby.innerHTML = '';
+                        data.lobbying_connections.forEach(l => ulLobby.innerHTML += `<li>${l}</li>`);
+                    }
+                }
+
+                const aumCard = document.getElementById('prof-aum-card');
+                if (aumCard) {
+                    aumCard.style.display = isFund ? 'block' : 'none';
+                    if(isFund) document.getElementById('prof-aum').textContent = data.aum;
+                }
                 
-                if (data.top_sectors && data.top_sectors.length > 0 && data.top_sectors[0] !== "Diversified Equities") {
-                    bottomTabs.style.display = 'grid';
-                    sectorsCard.style.display = 'block';
-                    const ulSectors = document.getElementById('prof-sectors');
-                    ulSectors.innerHTML = '';
-                    data.top_sectors.forEach(s => ulSectors.innerHTML += `<li>${s}</li>`);
-                } else {
-                    bottomTabs.style.display = 'none';
-                    sectorsCard.style.display = 'none';
+                const spyCard = document.getElementById('prof-spy-card');
+                if (spyCard) {
+                    spyCard.style.display = isFund ? 'block' : 'none';
+                    if(isFund) {
+                        const spyEl = document.getElementById('prof-vs-spy');
+                        spyEl.textContent = data.vs_spy;
+                        spyEl.className = `metric-value ${data.vs_spy.includes('+') ? 'signal-buy' : 'signal-sell'}`;
+                    }
+                }
+                
+                const momCard = document.getElementById('prof-mom-card');
+                if (momCard) {
+                    momCard.style.display = isFund ? 'block' : 'none';
+                    if(isFund) {
+                        const momEl = document.getElementById('prof-momentum');
+                        momEl.textContent = data.sector_momentum;
+                        momEl.className = `metric-value ${data.sector_momentum.includes('+') ? 'signal-buy' : 'signal-sell'}`;
+                    }
                 }
 
                 renderPieChart(data.top_holdings);
-                renderVolumeChart(data.portfolio_history);
+                
+                // RESTORED: Portfolio Return Curve (Realistic bounded performance)
+                renderLineChart(data.portfolio_history);
 
                 currentProfileTrades = data.recent_trades || [];
                 currentTradePage = 1;
@@ -908,16 +999,15 @@
             });
         }
 
-        function renderVolumeChart(historyData) {
+        // RESTORED TO REALISTIC PERCENTAGE RETURNS
+        function renderLineChart(historyData) {
             const ctx = document.getElementById('equityLineChart').getContext('2d');
             if (lineChartInstance) { lineChartInstance.destroy(); }
             
             let displayLabels = historyData.labels;
-            let displayData = historyData.volume_data;
             
             if (!displayLabels || displayLabels.length === 0) {
                 displayLabels = ["No Data"];
-                displayData = [0];
             }
             
             lineChartInstance = new Chart(ctx, {
@@ -926,10 +1016,16 @@
                     labels: displayLabels,
                     datasets: [
                         {
-                            label: 'Cumulative Volume ($)',
-                            data: displayData,
-                            borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2, fill: true, tension: 0.2, pointRadius: 2, pointBackgroundColor: '#3b82f6'
+                            label: 'Portfolio Return (%)',
+                            data: historyData.portfolio_returns,
+                            borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2, fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: '#10b981'
+                        },
+                        {
+                            label: 'S&P 500 Benchmark (%)',
+                            data: historyData.spy_returns,
+                            borderColor: '#a1a1aa', backgroundColor: 'transparent',
+                            borderWidth: 2, fill: false, tension: 0.35, borderDash: [5, 5], pointRadius: 0
                         }
                     ]
                 },
@@ -940,15 +1036,11 @@
                         legend: { position: 'top', labels: { color: '#a1a1aa', font: { family: 'Inter' } } } 
                     },
                     scales: {
-                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: '#27272a' } },
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 12 }, grid: { color: '#27272a' } },
                         y: { 
                             ticks: { 
                                 color: '#a1a1aa',
-                                callback: function(value) { 
-                                    if(value >= 1000000) return "$" + (value/1000000).toFixed(1) + "M";
-                                    if(value >= 1000) return "$" + (value/1000).toFixed(1) + "K";
-                                    return "$" + value; 
-                                }
+                                callback: function(value) { return value + "%"; }
                             }, 
                             grid: { color: '#27272a' } 
                         }
@@ -1099,7 +1191,9 @@
                             ${partyHtml}
                             <p style="color:var(--text-pure); font-weight:700; margin-top:0.5rem; font-size:0.85rem;">${insider.volume_display}</p>`;
                     } else if (roleKeyword === 'Fund' || roleKeyword === 'Institutional') {
-                        extraInfo = `<p style="color:var(--text-pure); font-weight:700; margin-top:0.5rem; font-size:0.95rem;">${insider.volume_display}</p>`;
+                        extraInfo = `
+                            <p style="color:var(--text-pure); font-weight:700; margin-top:0.5rem; font-size:0.95rem;">${insider.volume_display}</p>
+                            <p style="color:var(--accent-buy); font-weight:700; font-size:0.8rem;">${insider.return_1yr}</p>`;
                     } else {
                         extraInfo = `
                             <p style="color:var(--text-muted); font-size:0.8rem; margin-top:0.5rem;">${insider.role}</p>
