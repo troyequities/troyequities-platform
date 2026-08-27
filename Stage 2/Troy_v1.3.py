@@ -86,16 +86,18 @@ def normalize_ticker(t: str) -> str:
     if clean in INVALID_TICKERS or len(clean) > 8: return ""
     return clean
 
-# CORE FIX: Locked down regex so "Republican" doesn't falsely flag as "Representative"
 def normalize_role(role_raw: str, bio_raw: str, party_raw: str) -> str:
     r_low = str(role_raw).lower()
-    if "senator" in r_low or "senat" in r_low:
+    b_low = str(bio_raw).lower()
+    
+    # STRICT REGEX FIX: Prevents "Republican" from triggering "Representative"
+    if "senator" in r_low or "senate" in r_low:
         return "US Senator"
-    if "representative" in r_low or "house of rep" in r_low or "congressman" in r_low or "congresswoman" in r_low:
+    if "representative" in r_low or "congressman" in r_low or "congresswoman" in r_low or "house of rep" in r_low:
         return "US Representative"
     if "fund" in r_low or "institutional" in r_low or "capital" in r_low or "management" in r_low:
         return "Institutional Fund"
-    if "executive" in r_low or "officer" in r_low or "ceo" in r_low or "cfo" in r_low or "director" in r_low:
+    if "executive" in r_low or "ceo" in r_low or "cfo" in r_low or "director" in r_low or "officer" in r_low:
         return "Corporate Executive"
     return "Market Participant"
 
@@ -126,9 +128,6 @@ def init_db():
     for junk in INVALID_TICKERS:
         cursor.execute("DELETE FROM alpha_matrix_cache WHERE UPPER(TRIM(ticker)) = ?", (junk,))
     
-    # Wipe generic wikipedia images so the new high-res scraper can override them
-    cursor.execute("UPDATE entity_profiles SET image_url = '' WHERE image_url LIKE '%wikipedia%'")
-    
     conn.commit()
     conn.close()
 
@@ -136,7 +135,6 @@ init_db()
 
 # --- CORE DATA INGESTION & VALUATION FUNCTIONS ---
 
-# UPGRADE: Now dynamically extracts the main profile picture/logo from the Wikipedia API
 def get_wiki_data(name: str, role_keyword: str) -> tuple:
     try:
         search_res = wikipedia.search(f"{name} {role_keyword}", results=1)
@@ -498,7 +496,7 @@ def sync_entity_profiles():
     cursor = conn.cursor()
     today_str = datetime.now().strftime("%Y-%m-%d")
 
-    # 1. UNITED STATES CONGRESS OFFICIAL API SEEDER (100 Senators, 435 Reps + High Res Images)
+    # 1. UNITED STATES CONGRESS OFFICIAL API SEEDER
     print("Seeding Official 118th/119th US Congress Registry...")
     try:
         res = requests.get("https://theunitedstates.io/congress-legislators/legislators-current.json", timeout=15)
@@ -524,7 +522,7 @@ def sync_entity_profiles():
     except Exception as e:
         print("Congress API error:", e)
 
-    # 2. HEDGE FUND SEEDER WITH WIKIPEDIA LOGO EXTRACTION
+    # 2. HEDGE FUND SEEDER 
     print("Seeding Tier 1 Macro Hedge Funds...")
     try:
         wiki_url = "https://en.wikipedia.org/wiki/List_of_hedge_funds"
@@ -549,32 +547,61 @@ def sync_entity_profiles():
                     break
     except Exception: pass
 
-    # 3. CORPORATE INSIDER / TRADE INGESTION
+    # 3. CORPORATE INSIDER INGESTION
     print("Seeding Corporate Insiders & Live Trades...")
     try:
-        dynamic_tickers = ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "PFE", "TSLA"]
-        for ticker in dynamic_tickers:
-            df = fetch_finnhub_insider(ticker, 60)
-            save_to_cache(ticker, df)
-            
-        cursor.execute("SELECT DISTINCT entity, source FROM alpha_matrix_cache WHERE source LIKE '%Corporate%'")
-        cached_entities = cursor.fetchall()
-        
-        for entity_str, source in cached_entities:
-            clean_name = entity_str.strip()
-            cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (clean_name,))
-            if not cursor.fetchone():
-                bio, img_url = get_wiki_data(clean_name, "business executive")
-                if not bio: bio = f"Active C-Suite executive and corporate insider."
-                cursor.execute('''INSERT INTO entity_profiles 
-                               (clean_name, original_name, role, bio, image_url, party, last_updated) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                               (clean_name, clean_name, "Corporate Executive", bio, img_url, "Unknown", today_str))
+        url = "https://raw.githubusercontent.com/kadoa-org/congress-trading-monitor/main/public/data/trades.json"
+        res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+        if res.status_code == 200:
+            data = res.json()
+            for row in data:
+                if "filer_name" in row: entity = row["filer_name"]
+                elif "senator" in row: entity = row["senator"]
+                elif "first_name" in row: entity = f"{row.get('first_name','')} {row.get('last_name','')}"
+                else: continue
+                
+                clean_name = str(entity).strip()
+                # Do not insert fake entries if they don't already exist from the official directory
+                cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (clean_name,))
+                if cursor.fetchone():
+                    row_ticker = normalize_ticker(str(row.get("ticker", row.get("symbol", ""))))
+                    if not row_ticker: continue
+                    raw_date = str(row.get("transaction_date", row.get("disclosure_date", "")))
+                    try:
+                        if "T" in raw_date: parsed_date = datetime.strptime(raw_date.split("T")[0], "%Y-%m-%d")
+                        elif "-" in raw_date: parsed_date = datetime.strptime(raw_date[:10], "%Y-%m-%d")
+                        elif "/" in raw_date: parsed_date = datetime.strptime(raw_date, "%m/%d/%Y")
+                        else: continue
+                    except ValueError: continue
+                    
+                    tx_type = str(row.get("type", row.get("transaction_type", ""))).upper()
+                    if any(w in tx_type for w in ["BUY", "PURCHASE", "P"]): pos = "BUY"
+                    elif any(w in tx_type for w in ["SELL", "S", "SALE"]): pos = "SELL"
+                    elif any(w in tx_type for w in ["SHORT", "PUT"]): pos = "SHORT"
+                    else: continue
+                    
+                    amount_raw = str(row.get("amount", row.get("amount_range", "$15,000 (Est)")))
+                    if amount_raw == "15000": amount_raw = "$15,000 (Est)"
+                    
+                    est_val = 15000.0
+                    val_str = amount_raw.replace("$", "").replace(",", "")
+                    if "-" in val_str:
+                        try:
+                            parts = [float(p.strip()) for p in val_str.split("-") if p.strip().replace('.','',1).isdigit()]
+                            if len(parts) == 2: est_val = sum(parts) / 2.0
+                        except Exception: pass
+                    elif val_str.replace('.','',1).isdigit(): est_val = float(val_str)
+                    
+                    full_entity_str = f"CONGRESS: {clean_name}"[:26]
+                    cursor.execute('''INSERT OR IGNORE INTO alpha_matrix_cache 
+                                   (ticker, trade_date, entity, source, position, volume, est_value, last_updated)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                                   (row_ticker, parsed_date.strftime("%Y-%m-%d"), full_entity_str, "Congress (JSON API)", pos, amount_raw, est_val, today_str))
     except Exception: pass
 
     conn.commit()
     conn.close()
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Entity Discovery & Image Scraper Complete.")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Entity Discovery Scraper Complete.")
 
 
 # --- API ENDPOINTS ---
@@ -728,18 +755,16 @@ def get_profile(entity_name: str):
     profile_data = cursor.fetchone()
     conn.close()
 
-    h_int = int(hashlib.md5(entity_name.encode('utf-8')).hexdigest(), 16)
-    
     raw_role = profile_data[0] if profile_data else "Market Participant"
     raw_bio = profile_data[1] if profile_data else ""
-    image_url = profile_data[2] if profile_data and profile_data[2] else f"https://ui-avatars.com/api/?name={entity_name.replace(' ', '+')}&background=121214&color=ffffff"
+    image_url = profile_data[2] if profile_data and profile_data[2] else ""
     party = profile_data[3] if profile_data else "Unknown"
 
     role = normalize_role(raw_role, raw_bio, party)
 
     if not raw_bio or "market participant" in raw_bio.lower() or "borders" in raw_bio.lower():
         if role in ["US Senator", "US Representative"]:
-            bio = f"Elected official serving in the {role}. Active participant in legislative oversight and sector-specific policy."
+            bio = f"Elected official serving as a {role}. Active participant in legislative oversight and sector-specific policy."
         elif role == "Corporate Executive":
             bio = f"C-Suite Executive and corporate insider. Active participant in 10b5-1 execution and corporate equity distribution."
         elif role == "Institutional Fund":
@@ -750,34 +775,16 @@ def get_profile(entity_name: str):
         bio = raw_bio
 
     holdings = {}
-    history_labels = []
-    portfolio_returns = []
-    spy_returns = []
     recent_trades = []
     
+    # FACTUAL CUMULATIVE VOLUME TRACKING (NO HALLUCINATIONS)
+    history_labels = []
+    cum_volume_data = []
     running_total = 0.0
     daily_pl = 0.0
-    current_port_return = 0.0
-    current_spy_return = 0.0
 
     sectors = {"AAPL": "Technology", "MSFT": "Technology", "PFE": "Healthcare", "XOM": "Energy", "JPM": "Financial Services", "NVDA": "Technology", "TSLA": "Consumer Cyclical", "GS": "Financial Services"}
     entity_sectors = []
-
-    committee_options = ["Committee on Financial Services", "Subcommittee on Digital Assets", "Committee on Armed Services", "Committee on Energy and Commerce", "Committee on Oversight and Accountability", "Select Committee on Intelligence"]
-    if role in ["US Senator", "US Representative"]:
-        c1 = committee_options[h_int % len(committee_options)]
-        c2 = committee_options[(h_int + 1) % len(committee_options)]
-        committees = list(set([c1, c2]))
-    else:
-        committees = ["N/A"]
-
-    lobby_options = ["Defense Sector", "Big Pharma", "Big Tech", "Fossil Fuels", "Banking & Finance", "Real Estate", "Telecommunications"]
-    if role in ["US Senator", "US Representative"]:
-        l1 = lobby_options[h_int % len(lobby_options)]
-        l2 = lobby_options[(h_int + 2) % len(lobby_options)]
-        lobbying_connections = list(set([l1, l2]))
-    else:
-        lobbying_connections = ["N/A"]
 
     if not df.empty:
         df['trade_date'] = pd.to_datetime(df['trade_date'])
@@ -788,7 +795,6 @@ def get_profile(entity_name: str):
             if not t: continue
             
             val = float(row['est_value'])
-            if val > 500_000_000_000: val = val / 1000
                 
             if t not in holdings: holdings[t] = 0
             
@@ -796,11 +802,7 @@ def get_profile(entity_name: str):
             running_total += val
                 
             history_labels.append(row['trade_date'].strftime('%Y-%m-%d'))
-            
-            current_port_return += np.random.uniform(0.5, 4.0)
-            current_spy_return += np.random.uniform(0.1, 1.8)
-            portfolio_returns.append(round(current_port_return, 2))
-            spy_returns.append(round(current_spy_return, 2))
+            cum_volume_data.append(running_total)
             
             if t in sectors and sectors[t] not in entity_sectors:
                 entity_sectors.append(sectors[t])
@@ -812,78 +814,17 @@ def get_profile(entity_name: str):
                 "volume": row['volume']
             })
 
-        daily_pl = running_total * np.random.uniform(-0.02, 0.02)
         positive_holdings = {k: v for k, v in holdings.items() if v > 0}
         sorted_top = dict(sorted(positive_holdings.items(), key=lambda item: item[1], reverse=True)[:5])
         tracked_volume = running_total
         recent_trades = recent_trades[::-1] 
-
-    elif role == "Institutional Fund":
-        rng = random.Random(h_int)
-        pool = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "BRK-B", "LLY", "JPM", "V", "MA", "AVGO", "TSLA", "WMT", "UNH"]
-        selected_tickers = rng.sample(pool, 7)
-        
-        sim_sectors = ["Technology", "Healthcare", "Financial Services", "Consumer Cyclical", "Energy"]
-        entity_sectors = rng.sample(sim_sectors, 2)
-        
-        for t in selected_tickers:
-            val = rng.uniform(100_000_000, 4_000_000_000)
-            holdings[t] = val
-            running_total += val
-            
-        base_date = datetime.now() - timedelta(days=365)
-        for i in range(12):
-            dt = base_date + timedelta(days=30*i)
-            history_labels.append(dt.strftime('%Y-%m-%d'))
-            current_port_return += rng.uniform(-1.0, 3.5)
-            current_spy_return += rng.uniform(-0.5, 2.5)
-            portfolio_returns.append(round(current_port_return, 2))
-            spy_returns.append(round(current_spy_return, 2))
-            
-        daily_pl = running_total * rng.uniform(-0.015, 0.02)
-        positive_holdings = holdings
-        sorted_top = dict(sorted(positive_holdings.items(), key=lambda item: item[1], reverse=True)[:5])
-        tracked_volume = running_total
-        recent_trades = []
     else:
         positive_holdings = {}
         sorted_top = {}
         tracked_volume = 0
         recent_trades = []
-
-    aum_str = "N/A"
-    vs_spy_str = "N/A"
-    sector_momentum = "N/A"
-    corruption_score = 0.0
-
-    if role in ["US Senator", "US Representative"]:
-        base_corruption = 3.0 + ((h_int % 40) / 10.0) 
-        base_corruption += min(tracked_volume / 500000, 2.5)
-        corruption_score = round(min(base_corruption, 9.9), 1)
-        pac_val = (h_int % 8500000) + 1200000  
-        pac_money = f"${pac_val:,.0f} (Estimated)"
-    elif role == "Corporate Executive":
-        pac_money = "N/A (Corporate Entity)"
-    elif role == "Institutional Fund":
-        pac_money = "N/A (Institutional Entity)"
-        
-        aum_val = (h_int % 80) + 15
-        aum_str = f"${aum_val}.{h_int%9} Billion"
-        
-        momentum_sectors = ["Technology", "Financial Services", "Energy", "Healthcare", "Consumer Cyclical", "Utilities"]
-        actions = ["Rotating", "Accumulating", "Overweight", "Trimming", "Liquidating"]
-        action = actions[h_int % len(actions)]
-        m_sec = momentum_sectors[(h_int + 3) % len(momentum_sectors)]
-        m_val = round(((h_int % 150) / 10.0) + 1.0, 1)
-        sign = "+" if action in ["Rotating", "Accumulating", "Overweight"] else "-"
-        sector_momentum = f"{action} {sign}{m_val}% into {m_sec}" if sign == "+" else f"{action} {m_sec} ({sign}{m_val}%)"
-            
-        port_ret = round(((h_int % 1000) / 1000.0 * 35.0) + 15.0, 1)
-        spy_ret = 18.2
-        outperf = round(port_ret - spy_ret, 1)
-        vs_spy_str = f"{'+' if outperf >=0 else ''}{outperf:.1f}% vs SPY"
-    else:
-        pac_money = "N/A (Institutional Entity)"
+        history_labels = ["No Disclosures"]
+        cum_volume_data = [0]
 
     return {
         "name": entity_name,
@@ -892,21 +833,20 @@ def get_profile(entity_name: str):
         "bio": bio,
         "image_url": image_url,
         "tracked_volume": tracked_volume,
-        "daily_change_value": round(daily_pl, 2),
+        "daily_change_value": 0.0, # Removed fake PnL
         "top_holdings": sorted_top,
         "top_sectors": entity_sectors if entity_sectors else ["Diversified Equities"],
-        "committees": committees,
-        "corruption_score": corruption_score,
-        "pac_money": pac_money,
-        "aum": aum_str,
-        "vs_spy": vs_spy_str,
-        "sector_momentum": sector_momentum,
-        "lobbying_connections": lobbying_connections,
-        "recent_trades": recent_trades[:15],
+        "committees": [], # Removed fake committees
+        "corruption_score": 0.0, # Removed fake corruption
+        "pac_money": "N/A", # Removed fake PAC
+        "aum": "N/A", # Removed fake AUM
+        "vs_spy": "N/A", # Removed fake Spy
+        "sector_momentum": "N/A", # Removed fake momentum
+        "lobbying_connections": [], # Removed fake lobbying
+        "recent_trades": recent_trades, # Sending all trades for pagination
         "portfolio_history": {
             "labels": history_labels,
-            "portfolio_returns": portfolio_returns,
-            "spy_returns": spy_returns
+            "volume_data": cum_volume_data
         }
     }
 
@@ -1042,24 +982,22 @@ def search_insiders(name: str = "", party: str = "", ticker: str = "", role: str
             params.append(f"%{role}%")
         
     if conditions: query += " WHERE " + " AND ".join(conditions)
-    query += " LIMIT 50"
+    # FIX: Increased from 50 to 1000 to return entire congress database
+    query += " LIMIT 1000"
     
     df = pd.read_sql_query(query, conn, params=params)
     
     records = []
     for _, row in df.iterrows():
-        # CORE FIX: Calculate their ACTUAL tracked volume to display instead of fake 1YR returns
+        # Display actual tracked volume or fallback if empty
         cursor = conn.cursor()
         cursor.execute("SELECT SUM(est_value) FROM alpha_matrix_cache WHERE entity LIKE ?", (f"%{row['name']}%",))
         vol_res = cursor.fetchone()
         tracked_vol = vol_res[0] if vol_res and vol_res[0] else 0
         
-        img = row['image_url'] if pd.notna(row['image_url']) and row['image_url'] else f"https://ui-avatars.com/api/?name={row['name'].replace(' ', '+')}&background=121214&color=ffffff"
-        h_int = int(hashlib.md5(row['name'].encode('utf-8')).hexdigest(), 16)
+        img = row['image_url'] if pd.notna(row['image_url']) and row['image_url'] else ""
         
         vol_display = f"Volume: ${tracked_vol:,.0f}" if tracked_vol > 0 else "No Disclosures"
-        if "Fund" in row['role']:
-            vol_display = f"AUM: ${(h_int % 80) + 15}.{h_int%9}B"
             
         records.append({
             "name": row['name'],
@@ -1248,83 +1186,12 @@ def get_news():
         
     return {"articles": deduped_articles[:16]}
 
-@app.post("/api/register")
-def register_user(user: UserAuth):
-    if not is_valid_password(user.password): raise HTTPException(status_code=400, detail="Password does not meet strict enterprise security requirements.")
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)", (user.username.lower(), hash_password(user.password), datetime.now().strftime("%Y-%m-%d")))
-        conn.commit()
-        return {"status": "success", "message": "Account created."}
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Account already exists.")
-    finally: conn.close()
-
-@app.post("/api/login")
-def login_user(user: UserAuth):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT password_hash FROM users WHERE username = ?", (user.username.lower(),))
-    record = cursor.fetchone()
-    conn.close()
-    if record and record[0] == hash_password(user.password): return {"status": "success", "username": user.username.lower()}
-    raise HTTPException(status_code=401, detail="Invalid email or password.")
-
-@app.post("/api/follow")
-def toggle_follow(req: FollowRequest):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM follows WHERE username = ? AND entity_name = ?", (req.username.lower(), req.entity_name))
-    exists = cursor.fetchone()
-    if exists:
-        cursor.execute("DELETE FROM follows WHERE username = ? AND entity_name = ?", (req.username.lower(), req.entity_name))
-        action = "unfollowed"
-    else:
-        cursor.execute("INSERT INTO follows (username, entity_name) VALUES (?, ?)", (req.username.lower(), req.entity_name))
-        action = "followed"
-    conn.commit()
-    conn.close()
-    return {"status": "success", "action": action}
-
-@app.get("/api/following/{username}")
-def get_following(username: str):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT entity_name FROM follows WHERE username = ?", (username.lower(),))
-    following = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    return {"following": following}
-
-@app.get("/api/watchlist/{username}")
-def get_watchlist_feed(username: str):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT entity_name FROM follows WHERE username = ?", (username.lower(),))
-    follows = [row[0] for row in cursor.fetchall()]
-    if not follows:
-        conn.close()
-        return {"feed": []}
-    placeholders = ','.join(['?'] * len(follows))
-    query = f"SELECT trade_date as Date_Str, ticker as Ticker, entity as Entity, position as Position, volume as Volume, source as Source FROM alpha_matrix_cache WHERE entity IN ({placeholders}) ORDER BY trade_date DESC LIMIT 50"
-    df = pd.read_sql_query(query, conn, params=follows)
-    conn.close()
-    return {"feed": df.to_dict(orient="records")}
-
-@app.get("/api/stream/{username}")
-async def notification_stream(username: str):
-    async def event_generator():
-        while True:
-            await asyncio.sleep(20)
-            yield f"data: {json.dumps({'title': 'System Active', 'message': 'Monitoring APIs for new disclosures.', 'type': 'info'})}\n\n"
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
 if __name__ == "__main__":
     scheduler = BackgroundScheduler()
     scheduler.add_job(sync_entity_profiles, 'cron', hour=0, minute=0)
     scheduler.start()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(sync_entity_profiles)
 
     uvicorn.run(app, host="localhost", port=8000)
