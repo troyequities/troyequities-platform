@@ -303,11 +303,14 @@
                 <div class="metric-title">TOTAL TRACKED VOLUME</div>
                 <div class="metric-value" id="prof-volume">--</div>
             </div>
-            <!-- Dynamic Cards for Funds / Politicians -->
+            
+            <!-- STRICT GATING: These cards are manipulated via JS to only show for Politicians -->
             <div class="metric-card" id="prof-pac-card" style="display:none;">
                 <div class="metric-title">ESTIMATED PAC / LOBBYING MONEY</div>
                 <div class="metric-value" id="prof-pac" style="color:var(--accent-sell);">--</div>
             </div>
+            
+            <!-- STRICT GATING: These cards are manipulated via JS to only show for Funds -->
             <div class="metric-card" id="prof-aum-card" style="display:none;">
                 <div class="metric-title">ASSETS UNDER MANAGEMENT (AUM)</div>
                 <div class="metric-value" id="prof-aum">--</div>
@@ -331,13 +334,8 @@
             </div>
             <div class="chart-box" style="margin-bottom:0;">
                 <div style="display:flex; justify-content:space-between; width:100%; margin-bottom: 1.5rem;">
-                    <!-- REVERTED: Now plots realistic Portfolio Return % vs SPY -->
-                    <h3 class="metric-title">% PORTFOLIO RETURN VS. S&P 500 BENCHMARK</h3>
-                    <div>
-                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">1M</button>
-                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">6M</button>
-                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem;" onclick="alert('Timeline filter applied.')">1Y</button>
-                    </div>
+                    <!-- REVERTED TO CUMULATIVE VOLUME -->
+                    <h3 class="metric-title">CUMULATIVE TRACKED VOLUME ($)</h3>
                 </div>
                 <div style="width: 100%; height: 250px;">
                     <canvas id="equityLineChart"></canvas>
@@ -345,9 +343,9 @@
             </div>
         </div>
 
-        <!-- Strict Politician Bottom Tabs -->
+        <!-- STRICT GATING: Hidden by default, un-hidden only if role == US Senator or Representative -->
         <div class="metrics-grid" id="prof-bottom-tabs" style="grid-template-columns: repeat(3, 1fr); display:none;">
-            <div class="metric-card">
+            <div class="metric-card" id="prof-sectors-card">
                 <h3 class="metric-title" style="margin-bottom: 1rem;">TOP TRADED SECTORS</h3>
                 <ul id="prof-sectors" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
             </div>
@@ -368,8 +366,7 @@
                 <tbody id="prof-recent-body"></tbody>
             </table>
         </div>
-        
-        <!-- JAVASCRIPT PAGINATION CONTROLS -->
+        <!-- PAGINATION CONTROLS -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4rem;">
             <button class="page-btn" id="btn-prev-trades" onclick="prevTrades()">← Previous</button>
             <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;" id="page-indicator">Page 1 of 1</span>
@@ -393,8 +390,8 @@
         <h1 class="ticker-header">Political Insiders</h1>
         <h2 style="font-size: 1.4rem; font-weight: 500; color: var(--text-muted); margin-bottom: 2rem;">Search the official 118th/119th US Congress Registry to track legislative portfolios.</h2>
         <div class="main-search-container" style="max-width: 800px; margin: 0 auto 3rem auto; display:flex; gap:0.5rem; padding: 0.5rem; border-radius:12px;">
-            <input type="text" id="pol-in-name" placeholder="Search Senator or Representative Name..." class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name')">
-            <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name')">SEARCH</button>
+            <input type="text" id="pol-in-name" placeholder="Search Senator or Representative Name..." class="main-search-input" style="padding:0.8rem; border-radius:6px; border:1px solid var(--border-subtle);" onkeydown="if(event.key === 'Enter') fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name', true)">
+            <button class="main-search-btn" onclick="fetchAndRenderSpecificRole('US', 'pol-insiders-grid', 'pol-in-name', true)">SEARCH</button>
         </div>
         <div id="pol-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
     </main>
@@ -666,6 +663,41 @@
         }
 
         renderAuthUI();
+        
+        async function initHomeNews() {
+            const grid = document.getElementById('home-news-grid');
+            try {
+                const res = await fetch('http://localhost:8000/api/news');
+                const data = await res.json();
+                grid.innerHTML = '';
+                const topArticles = data.articles.slice(0, 3);
+                topArticles.forEach(article => {
+                    const imgHtml = article.image_url ? `<img src="${article.image_url}" class="news-card-img" alt="Thumbnail" onerror="this.src='https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=600'">` : '';
+                    grid.innerHTML += `
+                        <div class="news-card" onclick="window.open('${article.link}', '_blank')">
+                            ${imgHtml}
+                            <div class="news-card-content">
+                                <div class="news-meta">${article.source} | ${article.pubDate}</div>
+                                <div class="news-title" style="margin-top:0.5rem;">${article.title}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                grid.innerHTML = '<p style="color:var(--accent-sell); grid-column:1/-1; text-align:center;">Failed to connect to RSS aggregator.</p>';
+            }
+        }
+        
+        initHomeNews();
+
+        function connectNotifications(username) {
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource(`http://localhost:8000/api/stream/${username}`);
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                showToast(data.title, data.message);
+            };
+        }
 
         function showToast(title, message) {
             const container = document.getElementById('toast-container');
@@ -676,11 +708,34 @@
             setTimeout(() => { toast.remove(); }, 5000);
         }
 
+        async function handleAuth(action) {
+            const user = document.getElementById('auth-user').value.trim();
+            const pass = document.getElementById('auth-pass').value.trim();
+            if (!user || !pass) return alert("Please enter valid credentials.");
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/${action}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('troy_user', user);
+                    currentUser = user;
+                    renderAuthUI();
+                    document.getElementById('auth-modal').style.display = 'none';
+                    alert(`Success! Welcome to TROY, ${user}.`);
+                } else { alert(data.detail); }
+            } catch (err) { console.error("Auth Error:", err); }
+        }
+
         async function executeScan(inputId) {
             let ticker = "";
             if (document.getElementById(inputId)) {
                 ticker = document.getElementById(inputId).value.trim().toUpperCase();
-            } else { ticker = inputId; }
+            } else {
+                ticker = inputId; 
+            }
             if (!ticker) return;
 
             switchView('dashboard-view');
@@ -814,6 +869,57 @@
             });
         }
 
+        function renderRankingsChart(chartData) {
+            const ctx = document.getElementById('rankingsChart').getContext('2d');
+            if (rankingsChartInstance) { rankingsChartInstance.destroy(); }
+            rankingsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'TROY 10/10 Index (%)',
+                            data: chartData.portfolio,
+                            borderColor: '#10b981', 
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3, 
+                            fill: true, 
+                            tension: 0.4, 
+                            pointRadius: 0,
+                            pointHitRadius: 10
+                        },
+                        {
+                            label: 'S&P 500 (%)',
+                            data: chartData.spy,
+                            borderColor: '#a1a1aa', 
+                            backgroundColor: 'transparent',
+                            borderWidth: 2, 
+                            fill: false, 
+                            tension: 0.4, 
+                            borderDash: [5, 5], 
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } },
+                        tooltip: { backgroundColor: 'rgba(18, 18, 20, 0.9)', titleColor: '#fff', bodyColor: '#fff', borderColor: '#27272a', borderWidth: 1, padding: 10 }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: 'rgba(39, 39, 42, 0.5)' } },
+                        y: { 
+                            ticks: { color: '#a1a1aa', callback: function(value) { return value + "%"; } }, 
+                            grid: { color: 'rgba(39, 39, 42, 0.5)' } 
+                        }
+                    }
+                }
+            });
+        }
+
         async function openProfile(entityName) {
             switchView('profile-view');
             document.getElementById('prof-name').textContent = entityName;
@@ -842,7 +948,7 @@
                 
                 document.getElementById('prof-volume').textContent = fmt.format(data.tracked_volume);
                 
-                // --- STRICT POLITICIAN GATING ---
+                // --- STRICT POLITICIAN GATING: Relies explicitly on DB role, NOT party ---
                 const isPolitician = data.role === 'US Senator' || data.role === 'US Representative';
                 const isFund = data.role === "Institutional Fund";
                 
@@ -907,7 +1013,7 @@
                 }
 
                 renderPieChart(data.top_holdings);
-                renderLineChart(data.portfolio_history); // Realistic Return vs SPY
+                renderVolumeChart(data.portfolio_history); // Swapped to Cumulative Volume
 
                 currentProfileTrades = data.recent_trades || [];
                 currentTradePage = 1;
@@ -994,15 +1100,16 @@
             });
         }
 
-        // Realistic Return Graph
-        function renderLineChart(historyData) {
+        function renderVolumeChart(historyData) {
             const ctx = document.getElementById('equityLineChart').getContext('2d');
             if (lineChartInstance) { lineChartInstance.destroy(); }
             
             let displayLabels = historyData.labels;
+            let displayData = historyData.volume_data;
             
             if (!displayLabels || displayLabels.length === 0) {
                 displayLabels = ["No Data"];
+                displayData = [0];
             }
             
             lineChartInstance = new Chart(ctx, {
@@ -1011,16 +1118,10 @@
                     labels: displayLabels,
                     datasets: [
                         {
-                            label: 'Portfolio Return (%)',
-                            data: historyData.portfolio_returns,
-                            borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 2, fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: '#10b981'
-                        },
-                        {
-                            label: 'S&P 500 Benchmark (%)',
-                            data: historyData.spy_returns,
-                            borderColor: '#a1a1aa', backgroundColor: 'transparent',
-                            borderWidth: 2, fill: false, tension: 0.35, borderDash: [5, 5], pointRadius: 0
+                            label: 'Cumulative Volume ($)',
+                            data: displayData,
+                            borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2, fill: true, tension: 0.2, pointRadius: 2, pointBackgroundColor: '#3b82f6'
                         }
                     ]
                 },
@@ -1031,64 +1132,17 @@
                         legend: { position: 'top', labels: { color: '#a1a1aa', font: { family: 'Inter' } } } 
                     },
                     scales: {
-                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 12 }, grid: { color: '#27272a' } },
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: '#27272a' } },
                         y: { 
                             ticks: { 
                                 color: '#a1a1aa',
-                                callback: function(value) { return value + "%"; }
+                                callback: function(value) { 
+                                    if(value >= 1000000) return "$" + (value/1000000).toFixed(1) + "M";
+                                    if(value >= 1000) return "$" + (value/1000).toFixed(1) + "K";
+                                    return "$" + value; 
+                                }
                             }, 
                             grid: { color: '#27272a' } 
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderRankingsChart(chartData) {
-            const ctx = document.getElementById('rankingsChart').getContext('2d');
-            if (rankingsChartInstance) { rankingsChartInstance.destroy(); }
-            rankingsChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [
-                        {
-                            label: 'TROY 10/10 Index (%)',
-                            data: chartData.portfolio,
-                            borderColor: '#10b981', 
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 3, 
-                            fill: true, 
-                            tension: 0.4, 
-                            pointRadius: 0,
-                            pointHitRadius: 10
-                        },
-                        {
-                            label: 'S&P 500 (%)',
-                            data: chartData.spy,
-                            borderColor: '#a1a1aa', 
-                            backgroundColor: 'transparent',
-                            borderWidth: 2, 
-                            fill: false, 
-                            tension: 0.4, 
-                            borderDash: [5, 5], 
-                            pointRadius: 0
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } },
-                        tooltip: { backgroundColor: 'rgba(18, 18, 20, 0.9)', titleColor: '#fff', bodyColor: '#fff', borderColor: '#27272a', borderWidth: 1, padding: 10 }
-                    },
-                    scales: {
-                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: 'rgba(39, 39, 42, 0.5)' } },
-                        y: { 
-                            ticks: { color: '#a1a1aa', callback: function(value) { return value + "%"; } }, 
-                            grid: { color: 'rgba(39, 39, 42, 0.5)' } 
                         }
                     }
                 }
@@ -1198,7 +1252,6 @@
                     renderCount++;
                     let extraInfo = '';
                     
-                    // Display Party if Politician
                     let partyHtml = '';
                     if (insider.party && insider.party !== "Unknown") {
                         let pColor = insider.party === 'Democrat' ? 'var(--democrat-blue)' : 'var(--republican-red)';
@@ -1280,103 +1333,6 @@
             }
         }
 
-        async function loadPortfolio() {
-            if (!currentUser) {
-                document.getElementById('auth-modal').style.display = 'flex';
-                return;
-            }
-
-            switchView('portfolio-view');
-            const tbody = document.getElementById('portfolio-body');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Calculating quantitative portfolio metrics...</td></tr>';
-
-            try {
-                const res = await fetch(`http://localhost:8000/api/portfolio/${currentUser}`);
-                const data = await res.json();
-                
-                tbody.innerHTML = '';
-                if (!data.portfolio || data.portfolio.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">Your personal portfolio is empty. Add a ticker symbol above to begin tracking quantitative valuations.</td></tr>';
-                    return;
-                }
-
-                data.portfolio.forEach(item => {
-                    const tr = document.createElement('tr');
-                    
-                    const changeVal = item.daily_change;
-                    const changeClass = changeVal > 0 ? 'signal-buy' : changeVal < 0 ? 'signal-sell' : 'signal-neutral';
-                    const changePrefix = changeVal > 0 ? '+' : '';
-                    
-                    const upsideVal = item.valuation.implied_upside_pct;
-                    const upsideClass = upsideVal > 0 ? 'signal-buy' : upsideVal < 0 ? 'signal-sell' : 'signal-neutral';
-                    const upsidePrefix = upsideVal > 0 ? '+' : '';
-
-                    tr.innerHTML = `
-                        <td style="font-weight:700;"><a class="entity-link" onclick="openCompanyProfile('${item.ticker}')">$${item.ticker}</a></td>
-                        <td>$${item.current_price.toFixed(2)}</td>
-                        <td class="${changeClass}">${changePrefix}${changeVal.toFixed(2)}%</td>
-                        <td style="font-weight:700; color:var(--accent-brand);">$${item.valuation.alpha_target_price.toFixed(2)}</td>
-                        <td class="${upsideClass}">${upsidePrefix}${upsideVal.toFixed(2)}%</td>
-                        <td>${item.valuation.pe_ratio}</td>
-                        <td><button onclick="removePortfolioTicker('${item.ticker}')" style="background:rgba(239, 68, 68, 0.15); color:var(--accent-sell); border:1px solid rgba(239, 68, 68, 0.3); padding:0.3rem 0.8rem; border-radius:4px; font-weight:600; cursor:pointer; font-size:0.75rem;">Remove</button></td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch (err) {
-                console.error("Portfolio Load Error:", err);
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--accent-sell);">Failed to load portfolio metrics.</td></tr>';
-            }
-        }
-
-        async function addPortfolioTicker() {
-            if (!currentUser) {
-                document.getElementById('auth-modal').style.display = 'flex';
-                return;
-            }
-
-            const input = document.getElementById('port-ticker-input');
-            const ticker = input.value.trim().toUpperCase();
-            if (!ticker) return;
-
-            try {
-                const res = await fetch('http://localhost:8000/api/portfolio/add', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: currentUser, ticker: ticker })
-                });
-
-                if (res.ok) {
-                    input.value = '';
-                    showToast("Portfolio Updated", `$${ticker} successfully added to your holdings.`);
-                    loadPortfolio();
-                } else {
-                    alert("Failed to add ticker to portfolio.");
-                }
-            } catch (err) {
-                console.error("Add Portfolio Error:", err);
-            }
-        }
-
-        async function removePortfolioTicker(ticker) {
-            if (!currentUser) return;
-
-            try {
-                const res = await fetch('http://localhost:8000/api/portfolio/remove', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: currentUser, ticker: ticker })
-                });
-
-                if (res.ok) {
-                    showToast("Portfolio Updated", `$${ticker} removed from your holdings.`);
-                    loadPortfolio();
-                } else {
-                    alert("Failed to remove ticker.");
-                }
-            } catch (err) {
-                console.error("Remove Portfolio Error:", err);
-            }
-        }
     </script>
 </body>
 </html>

@@ -28,7 +28,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 warnings.filterwarnings("ignore", category=UserWarning, module='wikipedia')
 try:
     import wikipedia
-    wikipedia.set_user_agent("TroyQuant/4.8 (Quantitative Intelligence Research) contact@troyquant.com")
+    wikipedia.set_user_agent("TroyQuant/4.9 (Quantitative Intelligence Research) contact@troyquant.com")
 except ImportError:
     pass
 
@@ -47,7 +47,7 @@ INVALID_TICKERS = {
     "BOND", "MUNI", "TREASURY", "USD", "CURRENCY", ""
 }
 
-app = FastAPI(title="TROY Intelligence Engine", version="4.8")
+app = FastAPI(title="TROY Intelligence Engine", version="4.9")
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,11 +82,11 @@ def is_valid_password(pwd: str) -> bool:
 
 def normalize_ticker(t: str) -> str:
     if not t: return ""
-    clean = str(t).upper().strip().replace("$", "").replace(" ", "")
+    # FIX: Replace periods with dashes for Yahoo Finance compatibility (e.g. BRK.B -> BRK-B)
+    clean = str(t).upper().strip().replace("$", "").replace(" ", "").replace(".", "-")
     if clean in INVALID_TICKERS or len(clean) > 8: return ""
     return clean
 
-# STRICT ROLE ENFORCEMENT: Stripped out bio checking to prevent cross-contamination
 def normalize_role(role_raw: str, party_raw: str) -> str:
     r = str(role_raw).title()
     if "Senat" in r: return "US Senator"
@@ -119,6 +119,9 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS companies (
             ticker TEXT PRIMARY KEY, founded TEXT, last_updated TEXT)''')
     
+    # HARD RESET: Obliterate hallucinated profiles from older versions
+    cursor.execute("DELETE FROM entity_profiles")
+    
     for junk in INVALID_TICKERS:
         cursor.execute("DELETE FROM alpha_matrix_cache WHERE UPPER(TRIM(ticker)) = ?", (junk,))
     
@@ -135,14 +138,16 @@ def seed_all_congress_members():
     today_str = datetime.now().strftime("%Y-%m-%d")
     
     try:
-        res = requests.get("https://theunitedstates.io/congress-legislators/legislators-current.json", timeout=20)
+        # FIX: Pointed straight to GitHub to bypass SSL blocks
+        url = "https://raw.githubusercontent.com/unitedstates/congress-legislators/main/legislators-current.json"
+        res = requests.get(url, timeout=20)
         if res.status_code == 200:
             for pol in res.json():
                 name = f"{pol['name']['first']} {pol['name']['last']}"
                 bioguide = pol['id'].get('bioguide', '')
                 
-                # Official High-Res US Gov Bioguide Portrait
-                img_url = f"https://theunitedstates.io/images/congress/225x275/{bioguide}.jpg" if bioguide else ""
+                # FIX: Official US Gov Bioguide Portrait endpoint
+                img_url = f"https://bioguide.congress.gov/bioguide/photo/{bioguide[0]}/{bioguide}.jpg" if bioguide else ""
                 
                 term = pol['terms'][-1]
                 party = str(term.get('party', 'Unknown'))
@@ -151,23 +156,14 @@ def seed_all_congress_members():
                 
                 bio = f"Elected official serving as a {role} for the {party} party. Active participant in legislative oversight and sector-specific policy mapping."
                 
-                cursor.execute("SELECT image_url FROM entity_profiles WHERE clean_name = ?", (name,))
-                existing = cursor.fetchone()
-                
-                if not existing:
-                    cursor.execute("INSERT INTO entity_profiles (clean_name, original_name, role, bio, image_url, party, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                   (name, name, role, bio, img_url, party, today_str))
-                else:
-                    # Force overwrite to ensure high-res images and correct roles
-                    cursor.execute("UPDATE entity_profiles SET image_url = ?, role = ?, party = ?, bio = ? WHERE clean_name = ?", 
-                                   (img_url, role, party, bio, name))
+                cursor.execute("INSERT OR REPLACE INTO entity_profiles (clean_name, original_name, role, bio, image_url, party, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                               (name, name, role, bio, img_url, party, today_str))
             conn.commit()
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Successfully imported 535 Congress Members with HD Portraits.")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Successfully imported 535 Congress Members with Official Gov Portraits.")
     except Exception as e:
         print(f"Congress API Seeder Error: {e}")
     conn.close()
 
-# Run immediately on boot
 seed_all_congress_members()
 
 # --- CORE DATA INGESTION & VALUATION FUNCTIONS ---
@@ -313,7 +309,7 @@ def fetch_open_senate_json(ticker: str, lookback_days: int = 365) -> pd.DataFram
         
         records.append({
             "Date": parsed_date.strftime("%Y-%m-%d"),
-            "Entity": f"CONGRESS: {str(entity).strip()}"[:26],
+            "Entity": f"{str(entity).strip()}"[:26],
             "Source": "Congress (Senate JSON)", "Position": pos,
             "Volume": f"${est_val:,.0f}", "Est_Value": est_val
         })
@@ -679,6 +675,9 @@ def get_profile(entity_name: str):
     holdings = {}
     recent_trades = []
     
+    # FACTUAL CUMULATIVE VOLUME TRACKING (NO HALLUCINATIONS)
+    history_labels = []
+    cum_volume_data = []
     running_total = 0.0
 
     sectors = {"AAPL": "Technology", "MSFT": "Technology", "PFE": "Healthcare", "XOM": "Energy", "JPM": "Financial Services", "NVDA": "Technology", "TSLA": "Consumer Cyclical", "GS": "Financial Services"}
@@ -712,11 +711,15 @@ def get_profile(entity_name: str):
             if not t: continue
             
             val = float(row['est_value'])
+                
             if t not in holdings: holdings[t] = 0
             
             holdings[t] += val
             running_total += val
                 
+            history_labels.append(row['trade_date'].strftime('%Y-%m-%d'))
+            cum_volume_data.append(running_total)
+            
             if t in sectors and sectors[t] not in entity_sectors:
                 entity_sectors.append(sectors[t])
                 
@@ -731,73 +734,13 @@ def get_profile(entity_name: str):
         sorted_top = dict(sorted(positive_holdings.items(), key=lambda item: item[1], reverse=True)[:5])
         tracked_volume = running_total
         recent_trades = recent_trades[::-1] 
-
-    elif role == "Institutional Fund":
-        rng = random.Random(h_int)
-        pool = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "BRK-B", "LLY", "JPM", "V", "MA", "AVGO", "TSLA", "WMT", "UNH"]
-        selected_tickers = rng.sample(pool, 7)
-        sim_sectors = ["Technology", "Healthcare", "Financial Services", "Consumer Cyclical", "Energy"]
-        entity_sectors = rng.sample(sim_sectors, 2)
-        for t in selected_tickers:
-            val = rng.uniform(100_000_000, 4_000_000_000)
-            holdings[t] = val
-            running_total += val
-            
-        positive_holdings = holdings
-        sorted_top = dict(sorted(positive_holdings.items(), key=lambda item: item[1], reverse=True)[:5])
-        tracked_volume = running_total
-        recent_trades = []
     else:
         positive_holdings = {}
         sorted_top = {}
         tracked_volume = 0
         recent_trades = []
-
-    # NEW REALISTIC RETURN GENERATOR vs SPY
-    history_labels = []
-    port_returns = []
-    spy_returns = []
-    
-    base_date = datetime.now() - timedelta(days=365)
-    
-    # Generate realistic bounded target return (e.g. 12% to 42%)
-    target_return = 12.0 + (h_int % 300) / 10.0 
-    target_spy = 18.5
-    
-    for i in range(12):
-        dt = base_date + timedelta(days=30*i)
-        history_labels.append(dt.strftime('%b %Y'))
-        
-        # Linear progression with minor volatility
-        step = i / 11.0
-        p_val = step * target_return + random.uniform(-1.0, 2.0)
-        s_val = step * target_spy + random.uniform(-0.5, 1.0)
-        port_returns.append(round(p_val, 2))
-        spy_returns.append(round(s_val, 2))
-
-    aum_str = "N/A"
-    vs_spy_str = "N/A"
-    sector_momentum = "N/A"
-    corruption_score = 0.0
-
-    if role in ["US Senator", "US Representative"]:
-        base_corruption = 3.0 + ((h_int % 40) / 10.0) 
-        base_corruption += min(tracked_volume / 500000, 2.5)
-        corruption_score = round(min(base_corruption, 9.9), 1)
-    elif role == "Institutional Fund":
-        aum_val = (h_int % 80) + 15
-        aum_str = f"${aum_val}.{h_int%9} Billion"
-        
-        momentum_sectors = ["Technology", "Financial Services", "Energy", "Healthcare", "Consumer Cyclical", "Utilities"]
-        actions = ["Rotating", "Accumulating", "Overweight", "Trimming", "Liquidating"]
-        action = actions[h_int % len(actions)]
-        m_sec = momentum_sectors[(h_int + 3) % len(momentum_sectors)]
-        m_val = round(((h_int % 150) / 10.0) + 1.0, 1)
-        sign = "+" if action in ["Rotating", "Accumulating", "Overweight"] else "-"
-        sector_momentum = f"{action} {sign}{m_val}% into {m_sec}" if sign == "+" else f"{action} {m_sec} ({sign}{m_val}%)"
-            
-        outperf = round(target_return - target_spy, 1)
-        vs_spy_str = f"{'+' if outperf >=0 else ''}{outperf:.1f}% vs SPY"
+        history_labels = ["No Disclosures"]
+        cum_volume_data = [0]
 
     return {
         "name": entity_name,
@@ -809,17 +752,11 @@ def get_profile(entity_name: str):
         "top_holdings": sorted_top,
         "top_sectors": entity_sectors if entity_sectors else ["Diversified Equities"],
         "committees": committees,
-        "corruption_score": corruption_score,
         "pac_money": pac_money,
-        "aum": aum_str,
-        "vs_spy": vs_spy_str,
-        "sector_momentum": sector_momentum,
-        "lobbying_connections": lobbying_connections,
-        "recent_trades": recent_trades,
+        "recent_trades": recent_trades, # Sending all trades for pagination
         "portfolio_history": {
             "labels": history_labels,
-            "portfolio_returns": port_returns,
-            "spy_returns": spy_returns
+            "volume_data": cum_volume_data
         }
     }
 
@@ -959,30 +896,28 @@ def search_insiders(name: str = "", party: str = "", ticker: str = "", role: str
     query += " LIMIT 2000"
     
     df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
     
     records = []
     for _, row in df.iterrows():
+        # Display actual tracked volume or fallback if empty
+        cursor = conn.cursor()
+        cursor.execute("SELECT SUM(est_value) FROM alpha_matrix_cache WHERE entity LIKE ?", (f"%{row['name']}%",))
+        vol_res = cursor.fetchone()
+        tracked_vol = vol_res[0] if vol_res and vol_res[0] else 0
+        
         img = row['image_url'] if pd.notna(row['image_url']) and row['image_url'] else ""
-        h_int = int(hashlib.md5(row['name'].encode('utf-8')).hexdigest(), 16)
         
-        # Format the realistic bounded return
-        ret_val = round((h_int % 300) / 10.0 + 12.0, 1)
-        return_str = f"+{ret_val}% 1YR Return"
-        
-        if "Fund" in row['role']:
-            volume_display = f"AUM: ${(h_int % 80) + 15}.{h_int%9}B"
-        else:
-            volume_display = return_str
+        vol_display = f"Volume: ${tracked_vol:,.0f}" if tracked_vol > 0 else "No Disclosures"
             
         records.append({
             "name": row['name'],
             "role": row['role'],
-            "party": row['party'] if pd.notna(row['party']) and row['party'] != "Unknown" else "",
+            "party": row['party'] if pd.notna(row['party']) else "Unknown",
             "image_url": img,
-            "volume_display": volume_display
+            "volume_display": vol_display
         })
         
+    conn.close()
     return {"insiders": records}
 
 @app.post("/api/portfolio/add")
@@ -1160,77 +1095,6 @@ def get_news():
         deduped_articles.extend(todays_briefings)
         
     return {"articles": deduped_articles[:16]}
-
-@app.post("/api/register")
-def register_user(user: UserAuth):
-    if not is_valid_password(user.password): raise HTTPException(status_code=400, detail="Password does not meet strict enterprise security requirements.")
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)", (user.username.lower(), hash_password(user.password), datetime.now().strftime("%Y-%m-%d")))
-        conn.commit()
-        return {"status": "success", "message": "Account created."}
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Account already exists.")
-    finally: conn.close()
-
-@app.post("/api/login")
-def login_user(user: UserAuth):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT password_hash FROM users WHERE username = ?", (user.username.lower(),))
-    record = cursor.fetchone()
-    conn.close()
-    if record and record[0] == hash_password(user.password): return {"status": "success", "username": user.username.lower()}
-    raise HTTPException(status_code=401, detail="Invalid email or password.")
-
-@app.post("/api/follow")
-def toggle_follow(req: FollowRequest):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM follows WHERE username = ? AND entity_name = ?", (req.username.lower(), req.entity_name))
-    exists = cursor.fetchone()
-    if exists:
-        cursor.execute("DELETE FROM follows WHERE username = ? AND entity_name = ?", (req.username.lower(), req.entity_name))
-        action = "unfollowed"
-    else:
-        cursor.execute("INSERT INTO follows (username, entity_name) VALUES (?, ?)", (req.username.lower(), req.entity_name))
-        action = "followed"
-    conn.commit()
-    conn.close()
-    return {"status": "success", "action": action}
-
-@app.get("/api/following/{username}")
-def get_following(username: str):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT entity_name FROM follows WHERE username = ?", (username.lower(),))
-    following = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    return {"following": following}
-
-@app.get("/api/watchlist/{username}")
-def get_watchlist_feed(username: str):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT entity_name FROM follows WHERE username = ?", (username.lower(),))
-    follows = [row[0] for row in cursor.fetchall()]
-    if not follows:
-        conn.close()
-        return {"feed": []}
-    placeholders = ','.join(['?'] * len(follows))
-    query = f"SELECT trade_date as Date_Str, ticker as Ticker, entity as Entity, position as Position, volume as Volume, source as Source FROM alpha_matrix_cache WHERE entity IN ({placeholders}) ORDER BY trade_date DESC LIMIT 50"
-    df = pd.read_sql_query(query, conn, params=follows)
-    conn.close()
-    return {"feed": df.to_dict(orient="records")}
-
-@app.get("/api/stream/{username}")
-async def notification_stream(username: str):
-    async def event_generator():
-        while True:
-            await asyncio.sleep(20)
-            yield f"data: {json.dumps({'title': 'System Active', 'message': 'Monitoring APIs for new disclosures.', 'type': 'info'})}\n\n"
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     scheduler = BackgroundScheduler()
