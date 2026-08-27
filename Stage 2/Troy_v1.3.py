@@ -28,7 +28,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 warnings.filterwarnings("ignore", category=UserWarning, module='wikipedia')
 try:
     import wikipedia
-    wikipedia.set_user_agent("TroyQuant/4.6 (Quantitative Intelligence Research) contact@troyquant.com")
+    wikipedia.set_user_agent("TroyQuant/4.7 (Quantitative Intelligence Research) contact@troyquant.com")
 except ImportError:
     pass
 
@@ -47,7 +47,7 @@ INVALID_TICKERS = {
     "BOND", "MUNI", "TREASURY", "USD", "CURRENCY", ""
 }
 
-app = FastAPI(title="TROY Intelligence Engine", version="4.6")
+app = FastAPI(title="TROY Intelligence Engine", version="4.7")
 
 app.add_middleware(
     CORSMiddleware,
@@ -81,25 +81,21 @@ def is_valid_password(pwd: str) -> bool:
     return True
 
 def normalize_ticker(t: str) -> str:
-    if not t:
-        return ""
+    if not t: return ""
     clean = str(t).upper().strip().replace("$", "").replace(" ", "")
-    if clean in INVALID_TICKERS or len(clean) > 8:
-        return ""
+    if clean in INVALID_TICKERS or len(clean) > 8: return ""
     return clean
 
+# CORE FIX: Locked down regex so "Republican" doesn't falsely flag as "Representative"
 def normalize_role(role_raw: str, bio_raw: str, party_raw: str) -> str:
     r_low = str(role_raw).lower()
-    b_low = str(bio_raw).lower()
-    p_low = str(party_raw).lower()
-
-    if "senat" in r_low or "senat" in b_low:
+    if "senator" in r_low or "senat" in r_low:
         return "US Senator"
-    if "rep" in r_low or "house" in r_low or "congress" in r_low or p_low in ["democrat", "republican"]:
+    if "representative" in r_low or "house of rep" in r_low or "congressman" in r_low or "congresswoman" in r_low:
         return "US Representative"
-    if "fund" in r_low or "institutional" in r_low or "capital" in r_low:
+    if "fund" in r_low or "institutional" in r_low or "capital" in r_low or "management" in r_low:
         return "Institutional Fund"
-    if "executive" in r_low or "officer" in r_low or "ceo" in r_low or "cfo" in r_low:
+    if "executive" in r_low or "officer" in r_low or "ceo" in r_low or "cfo" in r_low or "director" in r_low:
         return "Corporate Executive"
     return "Market Participant"
 
@@ -126,13 +122,12 @@ def init_db():
             
     cursor.execute('''CREATE TABLE IF NOT EXISTS companies (
             ticker TEXT PRIMARY KEY, founded TEXT, last_updated TEXT)''')
-            
-    # Purge old bad tickers and reset blank wiki bios
+    
     for junk in INVALID_TICKERS:
         cursor.execute("DELETE FROM alpha_matrix_cache WHERE UPPER(TRIM(ticker)) = ?", (junk,))
     
+    # Wipe generic wikipedia images so the new high-res scraper can override them
     cursor.execute("UPDATE entity_profiles SET image_url = '' WHERE image_url LIKE '%wikipedia%'")
-    cursor.execute("UPDATE entity_profiles SET bio = 'Market Participant.' WHERE bio LIKE '%geographical%' OR bio LIKE '%borders%' OR bio LIKE '%American politician%'")
     
     conn.commit()
     conn.close()
@@ -141,24 +136,36 @@ init_db()
 
 # --- CORE DATA INGESTION & VALUATION FUNCTIONS ---
 
-def get_safe_bio(name: str, role_keyword: str) -> str:
+# UPGRADE: Now dynamically extracts the main profile picture/logo from the Wikipedia API
+def get_wiki_data(name: str, role_keyword: str) -> tuple:
     try:
         search_res = wikipedia.search(f"{name} {role_keyword}", results=1)
-        if not search_res: 
-            return ""
-        title_lower = search_res[0].lower()
-        name_parts = [p.lower() for p in name.split() if len(p) > 2]
-        if not any(part in title_lower for part in name_parts):
-            return ""
+        if not search_res: return "", ""
+        
         page = wikipedia.page(search_res[0], auto_suggest=False)
         summary = page.summary
+        
         bad_words = ["geographical", "boundary", "river", "city", "county", "municipality", "album", "song", "film", "settlement"]
-        if any(bw in summary.lower() for bw in bad_words):
-            return ""
+        if any(bw in summary.lower() for bw in bad_words): return "", ""
+            
         sentences = re.split(r'(?<=[.!?]) +', summary)
-        return " ".join(sentences[:2])
+        bio = " ".join(sentences[:2])
+        
+        img_url = ""
+        if page.images:
+            for img in page.images:
+                if img.lower().endswith(('.jpg', '.jpeg', '.png')) and 'icon' not in img.lower() and 'logo' not in img.lower() and 'map' not in img.lower():
+                    img_url = img
+                    break
+            if not img_url:
+                for img in page.images:
+                    if img.lower().endswith(('.jpg', '.jpeg', '.png')):
+                        img_url = img
+                        break
+                        
+        return bio, img_url
     except Exception:
-        return ""
+        return "", ""
 
 def get_company_founded(ticker: str, company_name: str) -> str:
     conn = sqlite3.connect(DB_NAME)
@@ -490,96 +497,35 @@ def sync_entity_profiles():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     today_str = datetime.now().strftime("%Y-%m-%d")
-    cutoff_date = datetime.now() - timedelta(days=365)
 
+    # 1. UNITED STATES CONGRESS OFFICIAL API SEEDER (100 Senators, 435 Reps + High Res Images)
+    print("Seeding Official 118th/119th US Congress Registry...")
     try:
-        url = "https://raw.githubusercontent.com/kadoa-org/congress-trading-monitor/main/public/data/trades.json"
-        res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+        res = requests.get("https://theunitedstates.io/congress-legislators/legislators-current.json", timeout=15)
         if res.status_code == 200:
-            data = res.json()
-            for row in data:
-                if "filer_name" in row: entity = row["filer_name"]
-                elif "senator" in row: entity = row["senator"]
-                elif "first_name" in row: entity = f"{row.get('first_name','')} {row.get('last_name','')}"
-                else: continue
+            for pol in res.json():
+                name = f"{pol['name']['first']} {pol['name']['last']}"
+                chamber = pol['terms'][-1]['type']
+                party = str(pol['terms'][-1].get('party', 'Unknown')).title()
+                role = "US Senator" if chamber == 'sen' else "US Representative"
+                bioguide = pol['id'].get('bioguide', '')
+                img_url = f"https://theunitedstates.io/images/congress/225x275/{bioguide}.jpg" if bioguide else ""
                 
-                clean_name = str(entity).strip()
-                chamber = str(row.get("chamber", row.get("branch", "Unknown"))).title()
-                role = "US Senator" if "senat" in chamber.lower() else "US Representative"
-                party = str(row.get("party", "Unknown")).title()
+                cursor.execute("SELECT clean_name, image_url FROM entity_profiles WHERE clean_name = ?", (name,))
+                existing = cursor.fetchone()
                 
-                cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (clean_name,))
-                if not cursor.fetchone():
-                    bio = get_safe_bio(clean_name, "politician")
-                    if not bio: bio = f"Elected official serving as {role}."
-                    cursor.execute('''INSERT INTO entity_profiles 
-                                   (clean_name, original_name, role, bio, image_url, party, last_updated) 
-                                   VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                                   (clean_name, clean_name, role, bio, "", party, today_str))
-
-                row_ticker = normalize_ticker(str(row.get("ticker", row.get("symbol", ""))))
-                if not row_ticker: continue
-                
-                raw_date = str(row.get("transaction_date", row.get("disclosure_date", "")))
-                try:
-                    if "T" in raw_date: parsed_date = datetime.strptime(raw_date.split("T")[0], "%Y-%m-%d")
-                    elif "-" in raw_date: parsed_date = datetime.strptime(raw_date[:10], "%Y-%m-%d")
-                    elif "/" in raw_date: parsed_date = datetime.strptime(raw_date, "%m/%d/%Y")
-                    else: continue
-                except ValueError: continue
-                if parsed_date < cutoff_date: continue
-                
-                tx_type = str(row.get("type", row.get("transaction_type", ""))).upper()
-                if any(w in tx_type for w in ["BUY", "PURCHASE", "P"]): pos = "BUY"
-                elif any(w in tx_type for w in ["SELL", "S", "SALE"]): pos = "SELL"
-                elif any(w in tx_type for w in ["SHORT", "PUT"]): pos = "SHORT"
-                else: continue
-                
-                amount_raw = str(row.get("amount", row.get("amount_range", "$15,000 (Est)")))
-                if amount_raw == "15000": amount_raw = "$15,000 (Est)"
-                
-                est_val = 15000.0
-                val_str = amount_raw.replace("$", "").replace(",", "")
-                if "-" in val_str:
-                    try:
-                        parts = [float(p.strip()) for p in val_str.split("-") if p.strip().replace('.','',1).isdigit()]
-                        if len(parts) == 2: est_val = sum(parts) / 2.0
-                    except Exception: pass
-                elif val_str.replace('.','',1).isdigit(): est_val = float(val_str)
-                
-                full_entity_str = f"CONGRESS: {clean_name} ({chamber})"[:26]
-                
-                cursor.execute('''INSERT OR IGNORE INTO alpha_matrix_cache 
-                               (ticker, trade_date, entity, source, position, volume, est_value, last_updated)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                               (row_ticker, parsed_date.strftime("%Y-%m-%d"), full_entity_str, "Congress (JSON API)", pos, amount_raw, est_val, today_str))
-
+                if not existing:
+                    bio = f"Elected official serving as {role} for the {party} party. Active participant in legislative oversight and sector-specific policy mapping."
+                    cursor.execute("INSERT INTO entity_profiles (clean_name, original_name, role, bio, image_url, party, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                   (name, name, role, bio, img_url, party, today_str))
+                else:
+                    if img_url and not existing[1]:
+                        cursor.execute("UPDATE entity_profiles SET image_url = ?, role = ?, party = ? WHERE clean_name = ?", (img_url, role, party, name))
     except Exception as e:
-        pass
+        print("Congress API error:", e)
 
-    try:
-        dynamic_tickers = ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "PFE", "TSLA"]
-        for ticker in dynamic_tickers:
-            df = fetch_finnhub_insider(ticker, 60)
-            save_to_cache(ticker, df)
-            
-        cursor.execute("SELECT DISTINCT entity, source FROM alpha_matrix_cache WHERE source LIKE '%Corporate%'")
-        cached_entities = cursor.fetchall()
-        
-        for entity_str, source in cached_entities:
-            clean_name = entity_str.strip()
-            cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (clean_name,))
-            if not cursor.fetchone():
-                role = "Corporate Executive"
-                bio = get_safe_bio(clean_name, "business executive")
-                if not bio: bio = f"Active C-Suite executive and corporate insider."
-                    
-                cursor.execute('''INSERT INTO entity_profiles 
-                               (clean_name, original_name, role, bio, image_url, party, last_updated) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                               (clean_name, clean_name, role, bio, "", "Unknown", today_str))
-    except Exception as e: pass
-
+    # 2. HEDGE FUND SEEDER WITH WIKIPEDIA LOGO EXTRACTION
+    print("Seeding Tier 1 Macro Hedge Funds...")
     try:
         wiki_url = "https://en.wikipedia.org/wiki/List_of_hedge_funds"
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
@@ -594,17 +540,42 @@ def sync_entity_profiles():
                         clean_name = str(row[name_col]).strip()
                         cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (clean_name,))
                         if not cursor.fetchone():
+                            bio, img_url = get_wiki_data(clean_name, "hedge fund")
+                            if not bio: bio = "Top-tier institutional asset management firm and global hedge fund."
                             cursor.execute('''INSERT INTO entity_profiles 
                                            (clean_name, original_name, role, bio, image_url, party, last_updated) 
                                            VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                                           (clean_name, clean_name, "Institutional Fund", "Top-tier institutional asset management firm and global hedge fund.", "", "Unknown", today_str))
+                                           (clean_name, clean_name, "Institutional Fund", bio, img_url, "Unknown", today_str))
                     break
-    except Exception as e:
-        pass
+    except Exception: pass
+
+    # 3. CORPORATE INSIDER / TRADE INGESTION
+    print("Seeding Corporate Insiders & Live Trades...")
+    try:
+        dynamic_tickers = ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "PFE", "TSLA"]
+        for ticker in dynamic_tickers:
+            df = fetch_finnhub_insider(ticker, 60)
+            save_to_cache(ticker, df)
+            
+        cursor.execute("SELECT DISTINCT entity, source FROM alpha_matrix_cache WHERE source LIKE '%Corporate%'")
+        cached_entities = cursor.fetchall()
+        
+        for entity_str, source in cached_entities:
+            clean_name = entity_str.strip()
+            cursor.execute("SELECT clean_name FROM entity_profiles WHERE clean_name = ?", (clean_name,))
+            if not cursor.fetchone():
+                bio, img_url = get_wiki_data(clean_name, "business executive")
+                if not bio: bio = f"Active C-Suite executive and corporate insider."
+                cursor.execute('''INSERT INTO entity_profiles 
+                               (clean_name, original_name, role, bio, image_url, party, last_updated) 
+                               VALUES (?, ?, ?, ?, ?, ?, ?)''', 
+                               (clean_name, clean_name, "Corporate Executive", bio, img_url, "Unknown", today_str))
+    except Exception: pass
 
     conn.commit()
     conn.close()
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Entity Discovery Scraper Complete.")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Entity Discovery & Image Scraper Complete.")
+
 
 # --- API ENDPOINTS ---
 @app.get("/")
@@ -619,7 +590,6 @@ def get_company_profile(ticker: str):
         yf_ticker = yf.Ticker(clean_sym)
         info = yf_ticker.info
         
-        # DYNAMIC HISTORY GENERATION (1D, 1M, 1Y, 5Y)
         history_data = {}
         periods = {
             "1D": ("1d", "5m", "%H:%M"),
@@ -647,16 +617,15 @@ def get_company_profile(ticker: str):
         sentences = re.split(r'(?<=[.!?]) +', raw_summary)
         summary = " ".join(sentences[:3])
         
+        div_yield = info.get('dividendYield')
+        if div_yield is None:
+            div_yield = info.get('trailingAnnualDividendYield')
+            
         current_price = info.get('currentPrice', info.get('regularMarketPrice', 0.0))
         if current_price <= 0:
             try: current_price = float(yf_ticker.fast_info['last_price'])
             except: current_price = 100.0
 
-        # BULLETPROOF DIVIDEND YIELD CALCULATION
-        div_yield = info.get('dividendYield')
-        if div_yield is None:
-            div_yield = info.get('trailingAnnualDividendYield')
-            
         if div_yield is not None:
             if div_yield > 1.0: div_str = f"{div_yield:.2f}%"
             else: div_str = f"{div_yield * 100:.2f}%"
@@ -853,8 +822,10 @@ def get_profile(entity_name: str):
         rng = random.Random(h_int)
         pool = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "BRK-B", "LLY", "JPM", "V", "MA", "AVGO", "TSLA", "WMT", "UNH"]
         selected_tickers = rng.sample(pool, 7)
+        
         sim_sectors = ["Technology", "Healthcare", "Financial Services", "Consumer Cyclical", "Energy"]
         entity_sectors = rng.sample(sim_sectors, 2)
+        
         for t in selected_tickers:
             val = rng.uniform(100_000_000, 4_000_000_000)
             holdings[t] = val
@@ -895,6 +866,7 @@ def get_profile(entity_name: str):
         pac_money = "N/A (Corporate Entity)"
     elif role == "Institutional Fund":
         pac_money = "N/A (Institutional Entity)"
+        
         aum_val = (h_int % 80) + 15
         aum_str = f"${aum_val}.{h_int%9} Billion"
         
@@ -1073,26 +1045,31 @@ def search_insiders(name: str = "", party: str = "", ticker: str = "", role: str
     query += " LIMIT 50"
     
     df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
     
-    def calc_return(entity_name):
-        h = int(hashlib.md5(entity_name.encode('utf-8')).hexdigest(), 16) % 1000
-        return round((h / 1000.0 * 35.0) + 15.0, 1)  
-
     records = []
     for _, row in df.iterrows():
+        # CORE FIX: Calculate their ACTUAL tracked volume to display instead of fake 1YR returns
+        cursor = conn.cursor()
+        cursor.execute("SELECT SUM(est_value) FROM alpha_matrix_cache WHERE entity LIKE ?", (f"%{row['name']}%",))
+        vol_res = cursor.fetchone()
+        tracked_vol = vol_res[0] if vol_res and vol_res[0] else 0
+        
         img = row['image_url'] if pd.notna(row['image_url']) and row['image_url'] else f"https://ui-avatars.com/api/?name={row['name'].replace(' ', '+')}&background=121214&color=ffffff"
         h_int = int(hashlib.md5(row['name'].encode('utf-8')).hexdigest(), 16)
         
+        vol_display = f"Volume: ${tracked_vol:,.0f}" if tracked_vol > 0 else "No Disclosures"
+        if "Fund" in row['role']:
+            vol_display = f"AUM: ${(h_int % 80) + 15}.{h_int%9}B"
+            
         records.append({
             "name": row['name'],
             "role": row['role'],
             "party": row['party'] if pd.notna(row['party']) else "Unknown",
             "image_url": img,
-            "return_1yr": f"+{calc_return(row['name'])}%",
-            "aum": f"${(h_int % 80) + 15}.{h_int%9}B AUM"
+            "volume_display": vol_display
         })
         
+    conn.close()
     return {"insiders": records}
 
 @app.post("/api/portfolio/add")
@@ -1347,7 +1324,7 @@ if __name__ == "__main__":
     scheduler.add_job(sync_entity_profiles, 'cron', hour=0, minute=0)
     scheduler.start()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         executor.submit(sync_entity_profiles)
 
     uvicorn.run(app, host="localhost", port=8000)
