@@ -82,7 +82,6 @@ def is_valid_password(pwd: str) -> bool:
 
 def normalize_ticker(t: str) -> str:
     if not t: return ""
-    # FIX: Replace periods with dashes for Yahoo Finance compatibility (e.g. BRK.B -> BRK-B)
     clean = str(t).upper().strip().replace("$", "").replace(" ", "").replace(".", "-")
     if clean in INVALID_TICKERS or len(clean) > 8: return ""
     return clean
@@ -98,6 +97,11 @@ def normalize_role(role_raw: str, party_raw: str) -> str:
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+    
+    # HARD RESET: Drop corrupted tables from older versions to purge hallucinated data
+    cursor.execute("DROP TABLE IF EXISTS entity_profiles")
+    cursor.execute("DROP TABLE IF EXISTS alpha_matrix_cache")
+    
     cursor.execute('''CREATE TABLE IF NOT EXISTS alpha_matrix_cache (
             ticker TEXT, trade_date TEXT, entity TEXT, source TEXT,
             position TEXT, volume TEXT, est_value REAL, last_updated TEXT,
@@ -119,12 +123,6 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS companies (
             ticker TEXT PRIMARY KEY, founded TEXT, last_updated TEXT)''')
     
-    # HARD RESET: Obliterate hallucinated profiles from older versions
-    cursor.execute("DELETE FROM entity_profiles")
-    
-    for junk in INVALID_TICKERS:
-        cursor.execute("DELETE FROM alpha_matrix_cache WHERE UPPER(TRIM(ticker)) = ?", (junk,))
-    
     conn.commit()
     conn.close()
 
@@ -138,7 +136,7 @@ def seed_all_congress_members():
     today_str = datetime.now().strftime("%Y-%m-%d")
     
     try:
-        # FIX: Pointed straight to GitHub to bypass SSL blocks
+        # Secure Github endpoint bypasses the SSL crash you experienced
         url = "https://raw.githubusercontent.com/unitedstates/congress-legislators/main/legislators-current.json"
         res = requests.get(url, timeout=20)
         if res.status_code == 200:
@@ -146,7 +144,7 @@ def seed_all_congress_members():
                 name = f"{pol['name']['first']} {pol['name']['last']}"
                 bioguide = pol['id'].get('bioguide', '')
                 
-                # FIX: Official US Gov Bioguide Portrait endpoint
+                # Official US Gov Bioguide Portrait database
                 img_url = f"https://bioguide.congress.gov/bioguide/photo/{bioguide[0]}/{bioguide}.jpg" if bioguide else ""
                 
                 term = pol['terms'][-1]
@@ -263,7 +261,7 @@ def get_company_aliases(ticker: str) -> list:
     except Exception: pass
     return sorted(list(set(aliases)), key=len, reverse=True)
 
-def fetch_open_senate_json(ticker: str, lookback_days: int = 365) -> pd.DataFrame:
+def fetch_open_senate_json(ticker: str, lookback_days: int = 1500) -> pd.DataFrame:
     cutoff_date = datetime.now() - timedelta(days=lookback_days)
     url = "https://raw.githubusercontent.com/kadoa-org/congress-trading-monitor/main/public/data/trades.json"
     try:
@@ -276,8 +274,6 @@ def fetch_open_senate_json(ticker: str, lookback_days: int = 365) -> pd.DataFram
     for row in data:
         row_ticker = normalize_ticker(str(row.get("ticker", row.get("symbol", ""))))
         if not row_ticker or row_ticker != ticker.upper(): continue
-        chamber = str(row.get("chamber", row.get("branch", "senate"))).lower()
-        if "house" in chamber: continue
         raw_date = str(row.get("transaction_date", row.get("disclosure_date", "")))
         try:
             if "T" in raw_date: parsed_date = datetime.strptime(raw_date.split("T")[0], "%Y-%m-%d")
@@ -310,12 +306,12 @@ def fetch_open_senate_json(ticker: str, lookback_days: int = 365) -> pd.DataFram
         records.append({
             "Date": parsed_date.strftime("%Y-%m-%d"),
             "Entity": f"{str(entity).strip()}"[:26],
-            "Source": "Congress (Senate JSON)", "Position": pos,
+            "Source": "Congress (JSON API)", "Position": pos,
             "Volume": f"${est_val:,.0f}", "Est_Value": est_val
         })
     return pd.DataFrame(records)
 
-def fetch_finnhub_insider(ticker: str, lookback_days: int = 365) -> pd.DataFrame:
+def fetch_finnhub_insider(ticker: str, lookback_days: int = 1500) -> pd.DataFrame:
     clean_sym = normalize_ticker(ticker)
     if not clean_sym: return pd.DataFrame()
     url = f"https://finnhub.io/api/v1/stock/insider-transactions?symbol={clean_sym}&from={(datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')}&to={datetime.now().strftime('%Y-%m-%d')}&token={FINNHUB_API_KEY}"
@@ -354,7 +350,7 @@ def fetch_finnhub_insider(ticker: str, lookback_days: int = 365) -> pd.DataFrame
         return df.drop(columns=['Is_10b5_1'])
     except Exception: return pd.DataFrame()
 
-def get_unified_flow_data(ticker: str, lookback_days: int = 365) -> pd.DataFrame:
+def get_unified_flow_data(ticker: str, lookback_days: int = 1500) -> pd.DataFrame:
     clean_sym = normalize_ticker(ticker)
     if not clean_sym: return pd.DataFrame()
 
@@ -650,14 +646,9 @@ def get_profile(entity_name: str):
     profile_data = cursor.fetchone()
     conn.close()
 
-    h_int = int(hashlib.md5(entity_name.encode('utf-8')).hexdigest(), 16)
-    
     raw_role = profile_data[0] if profile_data else "Market Participant"
     party = profile_data[3] if profile_data else "Unknown"
-    
-    # STRICT ROLE PARSING: Ignore bio, only look at the DB role column
     role = normalize_role(raw_role, party)
-
     image_url = profile_data[2] if profile_data and profile_data[2] else ""
     
     if profile_data and profile_data[1]:
@@ -675,7 +666,6 @@ def get_profile(entity_name: str):
     holdings = {}
     recent_trades = []
     
-    # FACTUAL CUMULATIVE VOLUME TRACKING (NO HALLUCINATIONS)
     history_labels = []
     cum_volume_data = []
     running_total = 0.0
@@ -683,25 +673,7 @@ def get_profile(entity_name: str):
     sectors = {"AAPL": "Technology", "MSFT": "Technology", "PFE": "Healthcare", "XOM": "Energy", "JPM": "Financial Services", "NVDA": "Technology", "TSLA": "Consumer Cyclical", "GS": "Financial Services"}
     entity_sectors = []
 
-    # Strict gating for politicians only
-    if role in ["US Senator", "US Representative"]:
-        committee_options = ["Committee on Financial Services", "Subcommittee on Digital Assets", "Committee on Armed Services", "Committee on Energy and Commerce", "Committee on Oversight and Accountability", "Select Committee on Intelligence"]
-        c1 = committee_options[h_int % len(committee_options)]
-        c2 = committee_options[(h_int + 1) % len(committee_options)]
-        committees = list(set([c1, c2]))
-        
-        lobby_options = ["Defense Sector", "Big Pharma", "Big Tech", "Fossil Fuels", "Banking & Finance", "Real Estate", "Telecommunications"]
-        l1 = lobby_options[h_int % len(lobby_options)]
-        l2 = lobby_options[(h_int + 2) % len(lobby_options)]
-        lobbying_connections = list(set([l1, l2]))
-        
-        pac_val = (h_int % 8500000) + 1200000  
-        pac_money = f"${pac_val:,.0f} (Estimated)"
-    else:
-        committees = []
-        lobbying_connections = []
-        pac_money = "N/A"
-
+    # Purely factual rendering logic. No hallucinated committees or pac money.
     if not df.empty:
         df['trade_date'] = pd.to_datetime(df['trade_date'])
         df = df.sort_values('trade_date')
@@ -711,7 +683,6 @@ def get_profile(entity_name: str):
             if not t: continue
             
             val = float(row['est_value'])
-                
             if t not in holdings: holdings[t] = 0
             
             holdings[t] += val
@@ -742,6 +713,10 @@ def get_profile(entity_name: str):
         history_labels = ["No Disclosures"]
         cum_volume_data = [0]
 
+    # Calculate realistic metadata for UI layout
+    total_disclosures = len(df) if not df.empty else 0
+    avg_trade_size = (tracked_volume / total_disclosures) if total_disclosures > 0 else 0
+
     return {
         "name": entity_name,
         "role": role,
@@ -749,11 +724,11 @@ def get_profile(entity_name: str):
         "bio": bio,
         "image_url": image_url,
         "tracked_volume": tracked_volume,
+        "total_disclosures": total_disclosures,
+        "avg_trade_size": avg_trade_size,
         "top_holdings": sorted_top,
         "top_sectors": entity_sectors if entity_sectors else ["Diversified Equities"],
-        "committees": committees,
-        "pac_money": pac_money,
-        "recent_trades": recent_trades, # Sending all trades for pagination
+        "recent_trades": recent_trades,
         "portfolio_history": {
             "labels": history_labels,
             "volume_data": cum_volume_data
@@ -892,22 +867,20 @@ def search_insiders(name: str = "", party: str = "", ticker: str = "", role: str
             params.append(f"%{role}%")
         
     if conditions: query += " WHERE " + " AND ".join(conditions)
-    # FIX: Increased limit to load all active members
+    # Allows the entire database to load seamlessly
     query += " LIMIT 2000"
     
     df = pd.read_sql_query(query, conn, params=params)
     
     records = []
     for _, row in df.iterrows():
-        # Display actual tracked volume or fallback if empty
         cursor = conn.cursor()
         cursor.execute("SELECT SUM(est_value) FROM alpha_matrix_cache WHERE entity LIKE ?", (f"%{row['name']}%",))
         vol_res = cursor.fetchone()
         tracked_vol = vol_res[0] if vol_res and vol_res[0] else 0
         
         img = row['image_url'] if pd.notna(row['image_url']) and row['image_url'] else ""
-        
-        vol_display = f"Volume: ${tracked_vol:,.0f}" if tracked_vol > 0 else "No Disclosures"
+        vol_display = f"Tracked Volume: ${tracked_vol:,.0f}" if tracked_vol > 0 else "No Disclosures"
             
         records.append({
             "name": row['name'],
