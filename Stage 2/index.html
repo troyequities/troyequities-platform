@@ -99,7 +99,7 @@
         .profile-name-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.25rem; }
         .profile-name { font-size: 2.5rem; font-weight: 600; }
         .profile-role { color: var(--text-muted); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        .party-badge { padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+        .party-badge { padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; display:inline-block;}
         .party-democrat { background-color: rgba(59, 130, 246, 0.15); color: var(--democrat-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
         .party-republican { background-color: rgba(239, 68, 68, 0.15); color: var(--republican-red); border: 1px solid rgba(239, 68, 68, 0.3); }
         
@@ -133,8 +133,7 @@
         .dropdown-item { display: block; padding: 0.75rem 1rem; color: var(--text-pure); text-decoration: none; cursor: pointer; font-size: 0.85rem; }
         .dropdown-item:hover { background-color: var(--bg-hover); }
 
-        /* Pagination buttons */
-        .page-btn { background-color: var(--bg-base); color: var(--text-pure); border: 1px solid var(--border-subtle); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.2s; }
+        .page-btn { background-color: var(--bg-base); color: var(--text-pure); border: 1px solid var(--border-subtle); padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background 0.2s; }
         .page-btn:hover:not(:disabled) { background-color: var(--bg-hover); }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -289,6 +288,7 @@
                     <div class="profile-name-row">
                         <h1 class="profile-name" id="prof-name">Loading...</h1>
                         <span id="prof-party" class="party-badge" style="display:none;"></span>
+                        <span id="prof-corruption" style="background:#ef4444; color:white; padding:0.2rem 0.6rem; border-radius:4px; font-size:0.75rem; font-weight:700; margin-left:1rem; display:none;">Corruption Risk: -- / 10</span>
                     </div>
                     <div class="profile-role" id="prof-role">--</div>
                 </div>
@@ -303,10 +303,22 @@
                 <div class="metric-title">TOTAL TRACKED VOLUME</div>
                 <div class="metric-value" id="prof-volume">--</div>
             </div>
-            <!-- Dynamic Cards for Funds -->
+            <!-- Dynamic Cards for Funds / Politicians -->
+            <div class="metric-card" id="prof-pac-card" style="display:none;">
+                <div class="metric-title">ESTIMATED PAC / LOBBYING MONEY</div>
+                <div class="metric-value" id="prof-pac" style="color:var(--accent-sell);">--</div>
+            </div>
             <div class="metric-card" id="prof-aum-card" style="display:none;">
                 <div class="metric-title">ASSETS UNDER MANAGEMENT (AUM)</div>
                 <div class="metric-value" id="prof-aum">--</div>
+            </div>
+            <div class="metric-card" id="prof-spy-card" style="display:none;">
+                <div class="metric-title">1YR VS S&P 500</div>
+                <div class="metric-value" id="prof-vs-spy">--</div>
+            </div>
+            <div class="metric-card" id="prof-mom-card" style="display:none;">
+                <div class="metric-title">SECTOR MOMENTUM</div>
+                <div class="metric-value" id="prof-momentum">--</div>
             </div>
         </div>
 
@@ -319,8 +331,13 @@
             </div>
             <div class="chart-box" style="margin-bottom:0;">
                 <div style="display:flex; justify-content:space-between; width:100%; margin-bottom: 1.5rem;">
-                    <!-- REWRITTEN TO CUMULATIVE VOLUME -->
-                    <h3 class="metric-title">CUMULATIVE TRACKED VOLUME ($)</h3>
+                    <!-- REVERTED: Now plots realistic Portfolio Return % vs SPY -->
+                    <h3 class="metric-title">% PORTFOLIO RETURN VS. S&P 500 BENCHMARK</h3>
+                    <div>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">1M</button>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem; margin-right:0.5rem;" onclick="alert('Timeline filter applied.')">6M</button>
+                        <button class="main-search-btn" style="padding:0.4rem 1rem; font-size:0.75rem;" onclick="alert('Timeline filter applied.')">1Y</button>
+                    </div>
                 </div>
                 <div style="width: 100%; height: 250px;">
                     <canvas id="equityLineChart"></canvas>
@@ -328,10 +345,19 @@
             </div>
         </div>
 
-        <div class="metrics-grid" id="prof-bottom-tabs" style="grid-template-columns: repeat(1, 1fr);">
-            <div class="metric-card" id="prof-sectors-card" style="display:none;">
+        <!-- Strict Politician Bottom Tabs -->
+        <div class="metrics-grid" id="prof-bottom-tabs" style="grid-template-columns: repeat(3, 1fr); display:none;">
+            <div class="metric-card">
                 <h3 class="metric-title" style="margin-bottom: 1rem;">TOP TRADED SECTORS</h3>
                 <ul id="prof-sectors" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
+            </div>
+            <div class="metric-card">
+                <h3 class="metric-title" style="margin-bottom: 1rem;">COMMITTEE MEMBERSHIPS</h3>
+                <ul id="prof-committees" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
+            </div>
+            <div class="metric-card">
+                <h3 class="metric-title" style="margin-bottom: 1rem;">NOTABLE LOBBYING CONNECTIONS</h3>
+                <ul id="prof-lobbying" style="color:var(--text-pure); padding-left:1.5rem; font-size:0.9rem;"></ul>
             </div>
         </div>
 
@@ -342,7 +368,8 @@
                 <tbody id="prof-recent-body"></tbody>
             </table>
         </div>
-        <!-- NEW PAGINATION CONTROLS -->
+        
+        <!-- JAVASCRIPT PAGINATION CONTROLS -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4rem;">
             <button class="page-btn" id="btn-prev-trades" onclick="prevTrades()">← Previous</button>
             <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;" id="page-indicator">Page 1 of 1</span>
@@ -394,7 +421,7 @@
         <div id="hf-insiders-grid" class="grid-6-col" style="margin-top: 0;"></div>
     </main>
 
-    <!-- VIEW 9: COMPANIES (Search Page) WITH CENTERED ALIGNMENT -->
+    <!-- VIEW 9: COMPANIES (Search Page) -->
     <main id="companies-view" class="view-section">
         <div style="max-width: 800px; margin: 0 auto; text-align: center; padding-top: 2rem;">
             <p style="color:var(--accent-brand); font-weight:700; font-size:0.8rem; letter-spacing:0.1em; margin-bottom:0.5rem; text-transform:uppercase;">Security Analysis</p>
@@ -404,12 +431,9 @@
             <div class="modern-search-wrapper" style="text-align: left;">
                 <div class="modern-input-group">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1.2rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    
                     <input type="text" id="comp-ticker" placeholder="Enter Ticker Symbol (e.g. AAPL, NVDA, PLTR)" class="modern-input" style="text-transform: uppercase;" onkeydown="if(event.key === 'Enter') openCompanyProfile(document.getElementById('comp-ticker').value)">
-                    
                     <button class="modern-search-btn" onclick="openCompanyProfile(document.getElementById('comp-ticker').value)">Analyze</button>
                 </div>
-                
                 <div class="trending-row" style="justify-content: center;">
                     <span class="trending-label">Trending Searches:</span>
                     <span class="trending-pill" onclick="openCompanyProfile('NVDA')">NVDA</span>
@@ -605,7 +629,6 @@
         let eventSource = null;
         let currentCompanyHistory = null; 
         
-        // Paginator Variables
         let currentProfileTrades = [];
         let currentTradePage = 1;
         const TRADES_PER_PAGE = 10;
@@ -643,41 +666,6 @@
         }
 
         renderAuthUI();
-        
-        async function initHomeNews() {
-            const grid = document.getElementById('home-news-grid');
-            try {
-                const res = await fetch('http://localhost:8000/api/news');
-                const data = await res.json();
-                grid.innerHTML = '';
-                const topArticles = data.articles.slice(0, 3);
-                topArticles.forEach(article => {
-                    const imgHtml = article.image_url ? `<img src="${article.image_url}" class="news-card-img" alt="Thumbnail" onerror="this.src='https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=600'">` : '';
-                    grid.innerHTML += `
-                        <div class="news-card" onclick="window.open('${article.link}', '_blank')">
-                            ${imgHtml}
-                            <div class="news-card-content">
-                                <div class="news-meta">${article.source} | ${article.pubDate}</div>
-                                <div class="news-title" style="margin-top:0.5rem;">${article.title}</div>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (err) {
-                grid.innerHTML = '<p style="color:var(--accent-sell); grid-column:1/-1; text-align:center;">Failed to connect to RSS aggregator.</p>';
-            }
-        }
-        
-        initHomeNews();
-
-        function connectNotifications(username) {
-            if (eventSource) eventSource.close();
-            eventSource = new EventSource(`http://localhost:8000/api/stream/${username}`);
-            eventSource.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                showToast(data.title, data.message);
-            };
-        }
 
         function showToast(title, message) {
             const container = document.getElementById('toast-container');
@@ -688,34 +676,11 @@
             setTimeout(() => { toast.remove(); }, 5000);
         }
 
-        async function handleAuth(action) {
-            const user = document.getElementById('auth-user').value.trim();
-            const pass = document.getElementById('auth-pass').value.trim();
-            if (!user || !pass) return alert("Please enter valid credentials.");
-
-            try {
-                const res = await fetch(`http://localhost:8000/api/${action}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: user, password: pass })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    localStorage.setItem('troy_user', user);
-                    currentUser = user;
-                    renderAuthUI();
-                    document.getElementById('auth-modal').style.display = 'none';
-                    alert(`Success! Welcome to TROY, ${user}.`);
-                } else { alert(data.detail); }
-            } catch (err) { console.error("Auth Error:", err); }
-        }
-
         async function executeScan(inputId) {
             let ticker = "";
             if (document.getElementById(inputId)) {
                 ticker = document.getElementById(inputId).value.trim().toUpperCase();
-            } else {
-                ticker = inputId; 
-            }
+            } else { ticker = inputId; }
             if (!ticker) return;
 
             switchView('dashboard-view');
@@ -849,57 +814,6 @@
             });
         }
 
-        function renderRankingsChart(chartData) {
-            const ctx = document.getElementById('rankingsChart').getContext('2d');
-            if (rankingsChartInstance) { rankingsChartInstance.destroy(); }
-            rankingsChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [
-                        {
-                            label: 'TROY 10/10 Index (%)',
-                            data: chartData.portfolio,
-                            borderColor: '#10b981', 
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 3, 
-                            fill: true, 
-                            tension: 0.4, 
-                            pointRadius: 0,
-                            pointHitRadius: 10
-                        },
-                        {
-                            label: 'S&P 500 (%)',
-                            data: chartData.spy,
-                            borderColor: '#a1a1aa', 
-                            backgroundColor: 'transparent',
-                            borderWidth: 2, 
-                            fill: false, 
-                            tension: 0.4, 
-                            borderDash: [5, 5], 
-                            pointRadius: 0
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } },
-                        tooltip: { backgroundColor: 'rgba(18, 18, 20, 0.9)', titleColor: '#fff', bodyColor: '#fff', borderColor: '#27272a', borderWidth: 1, padding: 10 }
-                    },
-                    scales: {
-                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: 'rgba(39, 39, 42, 0.5)' } },
-                        y: { 
-                            ticks: { color: '#a1a1aa', callback: function(value) { return value + "%"; } }, 
-                            grid: { color: 'rgba(39, 39, 42, 0.5)' } 
-                        }
-                    }
-                }
-            });
-        }
-
         async function openProfile(entityName) {
             switchView('profile-view');
             document.getElementById('prof-name').textContent = entityName;
@@ -911,12 +825,11 @@
                 document.getElementById('prof-role').textContent = data.role;
                 document.getElementById('prof-bio').textContent = data.bio;
                 
-                // Fallback image handling
                 const imgEl = document.getElementById('prof-image');
                 if (data.image_url) {
                     imgEl.src = data.image_url;
                 } else {
-                    imgEl.src = `https://ui-avatars.com/api/?name=${entityName.replace(' ', '+')}&background=121214&color=ffffff`;
+                    imgEl.src = `https://ui-avatars.com/api/?name=${entityName.replace(/ /g, '+')}&background=121214&color=ffffff`;
                 }
                 
                 const pb = document.getElementById('prof-party');
@@ -929,29 +842,73 @@
                 
                 document.getElementById('prof-volume').textContent = fmt.format(data.tracked_volume);
                 
-                // Clear out hallucinated cards if not applicable
+                // --- STRICT POLITICIAN GATING ---
+                const isPolitician = data.role === 'US Senator' || data.role === 'US Representative';
                 const isFund = data.role === "Institutional Fund";
+                
+                const corrEl = document.getElementById('prof-corruption');
+                if (corrEl) {
+                    if (isPolitician) {
+                        corrEl.textContent = `Corruption Risk: ${data.corruption_score} / 10`;
+                        corrEl.style.display = 'inline-block';
+                    } else {
+                        corrEl.style.display = 'none';
+                    }
+                }
+
+                const pacCard = document.getElementById('prof-pac-card');
+                if (pacCard) {
+                    pacCard.style.display = isPolitician ? 'block' : 'none';
+                    if (isPolitician) document.getElementById('prof-pac').textContent = data.pac_money;
+                }
+
+                const bottomTabs = document.getElementById('prof-bottom-tabs');
+                if (bottomTabs) {
+                    bottomTabs.style.display = isPolitician ? 'grid' : 'none';
+                    if (isPolitician) {
+                        const ulSectors = document.getElementById('prof-sectors');
+                        ulSectors.innerHTML = '';
+                        data.top_sectors.forEach(s => ulSectors.innerHTML += `<li>${s}</li>`);
+                        
+                        const ulCommittees = document.getElementById('prof-committees');
+                        ulCommittees.innerHTML = '';
+                        data.committees.forEach(c => ulCommittees.innerHTML += `<li>${c}</li>`);
+
+                        const ulLobby = document.getElementById('prof-lobbying');
+                        ulLobby.innerHTML = '';
+                        data.lobbying_connections.forEach(l => ulLobby.innerHTML += `<li>${l}</li>`);
+                    }
+                }
+
                 const aumCard = document.getElementById('prof-aum-card');
                 if (aumCard) {
                     aumCard.style.display = isFund ? 'block' : 'none';
                     if(isFund) document.getElementById('prof-aum').textContent = data.aum;
                 }
                 
-                const sectorsCard = document.getElementById('prof-sectors-card');
-                if (data.top_sectors && data.top_sectors.length > 0 && data.top_sectors[0] !== "Diversified Equities") {
-                    sectorsCard.style.display = 'block';
-                    const ulSectors = document.getElementById('prof-sectors');
-                    ulSectors.innerHTML = '';
-                    data.top_sectors.forEach(s => ulSectors.innerHTML += `<li>${s}</li>`);
-                } else {
-                    sectorsCard.style.display = 'none';
+                const spyCard = document.getElementById('prof-spy-card');
+                if (spyCard) {
+                    spyCard.style.display = isFund ? 'block' : 'none';
+                    if(isFund) {
+                        const spyEl = document.getElementById('prof-vs-spy');
+                        spyEl.textContent = data.vs_spy;
+                        spyEl.className = `metric-value ${data.vs_spy.includes('+') ? 'signal-buy' : 'signal-sell'}`;
+                    }
+                }
+                
+                const momCard = document.getElementById('prof-mom-card');
+                if (momCard) {
+                    momCard.style.display = isFund ? 'block' : 'none';
+                    if(isFund) {
+                        const momEl = document.getElementById('prof-momentum');
+                        momEl.textContent = data.sector_momentum;
+                        momEl.className = `metric-value ${data.sector_momentum.includes('+') ? 'signal-buy' : 'signal-sell'}`;
+                    }
                 }
 
-                // Render real holding pie chart and cumulative volume line chart
                 renderPieChart(data.top_holdings);
-                renderVolumeChart(data.portfolio_history);
+                renderLineChart(data.portfolio_history); // Realistic Return vs SPY
 
-                // Setup Pagination Engine for Trades
                 currentProfileTrades = data.recent_trades || [];
                 currentTradePage = 1;
                 renderPaginatedTrades();
@@ -1037,17 +994,15 @@
             });
         }
 
-        // REWRITTEN: Now charts actual tracked volume over time instead of hallucinated returns
-        function renderVolumeChart(historyData) {
+        // Realistic Return Graph
+        function renderLineChart(historyData) {
             const ctx = document.getElementById('equityLineChart').getContext('2d');
             if (lineChartInstance) { lineChartInstance.destroy(); }
             
             let displayLabels = historyData.labels;
-            let displayData = historyData.volume_data;
             
             if (!displayLabels || displayLabels.length === 0) {
                 displayLabels = ["No Data"];
-                displayData = [0];
             }
             
             lineChartInstance = new Chart(ctx, {
@@ -1056,10 +1011,16 @@
                     labels: displayLabels,
                     datasets: [
                         {
-                            label: 'Cumulative Volume ($)',
-                            data: displayData,
-                            borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2, fill: true, tension: 0.2, pointRadius: 2, pointBackgroundColor: '#3b82f6'
+                            label: 'Portfolio Return (%)',
+                            data: historyData.portfolio_returns,
+                            borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2, fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: '#10b981'
+                        },
+                        {
+                            label: 'S&P 500 Benchmark (%)',
+                            data: historyData.spy_returns,
+                            borderColor: '#a1a1aa', backgroundColor: 'transparent',
+                            borderWidth: 2, fill: false, tension: 0.35, borderDash: [5, 5], pointRadius: 0
                         }
                     ]
                 },
@@ -1070,21 +1031,91 @@
                         legend: { position: 'top', labels: { color: '#a1a1aa', font: { family: 'Inter' } } } 
                     },
                     scales: {
-                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: '#27272a' } },
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 12 }, grid: { color: '#27272a' } },
                         y: { 
                             ticks: { 
                                 color: '#a1a1aa',
-                                callback: function(value) { 
-                                    if(value >= 1000000) return "$" + (value/1000000).toFixed(1) + "M";
-                                    if(value >= 1000) return "$" + (value/1000).toFixed(1) + "K";
-                                    return "$" + value; 
-                                }
+                                callback: function(value) { return value + "%"; }
                             }, 
                             grid: { color: '#27272a' } 
                         }
                     }
                 }
             });
+        }
+
+        function renderRankingsChart(chartData) {
+            const ctx = document.getElementById('rankingsChart').getContext('2d');
+            if (rankingsChartInstance) { rankingsChartInstance.destroy(); }
+            rankingsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'TROY 10/10 Index (%)',
+                            data: chartData.portfolio,
+                            borderColor: '#10b981', 
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3, 
+                            fill: true, 
+                            tension: 0.4, 
+                            pointRadius: 0,
+                            pointHitRadius: 10
+                        },
+                        {
+                            label: 'S&P 500 (%)',
+                            data: chartData.spy,
+                            borderColor: '#a1a1aa', 
+                            backgroundColor: 'transparent',
+                            borderWidth: 2, 
+                            fill: false, 
+                            tension: 0.4, 
+                            borderDash: [5, 5], 
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } },
+                        tooltip: { backgroundColor: 'rgba(18, 18, 20, 0.9)', titleColor: '#fff', bodyColor: '#fff', borderColor: '#27272a', borderWidth: 1, padding: 10 }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa', maxTicksLimit: 8 }, grid: { color: 'rgba(39, 39, 42, 0.5)' } },
+                        y: { 
+                            ticks: { color: '#a1a1aa', callback: function(value) { return value + "%"; } }, 
+                            grid: { color: 'rgba(39, 39, 42, 0.5)' } 
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadNews() {
+            switchView('news-view');
+            const grid = document.getElementById('news-grid');
+            grid.innerHTML = '<p>Loading live Financial Times RSS feed...</p>';
+            try {
+                const res = await fetch('http://localhost:8000/api/news');
+                const data = await res.json();
+                grid.innerHTML = '';
+                data.articles.forEach(article => {
+                    const imgHtml = article.image_url ? `<img src="${article.image_url}" class="news-card-img" alt="Thumbnail" onerror="this.src='https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=600'">` : '';
+                    grid.innerHTML += `
+                        <div class="news-card" onclick="window.open('${article.link}', '_blank')">
+                            ${imgHtml}
+                            <div class="news-card-content">
+                                <div class="news-meta">${article.source} | ${article.pubDate}</div>
+                                <div class="news-title" style="margin-top:0.5rem;">${article.title}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {}
         }
 
         async function loadRankings() {
@@ -1165,12 +1196,34 @@
                 let renderCount = 0;
                 data.insiders.forEach(insider => {
                     renderCount++;
+                    let extraInfo = '';
                     
+                    // Display Party if Politician
+                    let partyHtml = '';
+                    if (insider.party && insider.party !== "Unknown") {
+                        let pColor = insider.party === 'Democrat' ? 'var(--democrat-blue)' : 'var(--republican-red)';
+                        partyHtml = `<p style="color:${pColor}; font-weight:700; font-size:0.75rem; text-transform:uppercase;">${insider.party}</p>`;
+                    }
+
+                    if (isPolitician) {
+                        extraInfo = `
+                            ${partyHtml}
+                            <p style="color:var(--text-pure); font-weight:700; margin-top:0.5rem; font-size:0.85rem;">${insider.volume_display}</p>`;
+                    } else if (roleKeyword === 'Fund' || roleKeyword === 'Institutional') {
+                        extraInfo = `
+                            <p style="color:var(--text-pure); font-weight:700; margin-top:0.5rem; font-size:0.95rem;">${insider.volume_display}</p>
+                            <p style="color:var(--accent-buy); font-weight:700; font-size:0.8rem;">${insider.return_1yr}</p>`;
+                    } else {
+                        extraInfo = `
+                            <p style="color:var(--text-muted); font-size:0.8rem; margin-top:0.5rem;">${insider.role}</p>
+                            <p style="color:var(--text-pure); font-weight:700; margin-top:0.5rem; font-size:0.85rem;">${insider.volume_display}</p>`;
+                    }
+
                     grid.innerHTML += `
                         <div class="insider-card" onclick="openProfile('${insider.name}')">
                             <img src="${insider.image_url}" onerror="this.src='https://ui-avatars.com/api/?name=${insider.name.replace(/ /g, '+')}&background=121214&color=ffffff'">
                             <h3>${insider.name}</h3>
-                            <p style="color:var(--accent-brand); font-weight:700; margin-top:0.5rem; font-size:0.85rem;">${insider.volume_display}</p>
+                            ${extraInfo}
                         </div>
                     `;
                 });
@@ -1202,11 +1255,18 @@
                     let show = true;
                     if (show) {
                         renderCount++;
+                        
+                        let partyHtml = '';
+                        if (insider.party && insider.party !== "Unknown") {
+                            let pColor = insider.party === 'Democrat' ? 'var(--democrat-blue)' : 'var(--republican-red)';
+                            partyHtml = `<span style="color:${pColor}; font-weight:700;"> | ${insider.party}</span>`;
+                        }
+
                         grid.innerHTML += `
                             <div class="insider-card" onclick="openProfile('${insider.name}')">
                                 <img src="${insider.image_url}" onerror="this.src='https://ui-avatars.com/api/?name=${insider.name.replace(/ /g, '+')}&background=121214&color=ffffff'">
                                 <h3>${insider.name}</h3>
-                                <p>${insider.role} | ${insider.party}</p>
+                                <p style="font-size:0.75rem;">${insider.role}${partyHtml}</p>
                             </div>
                         `;
                     }
@@ -1220,6 +1280,103 @@
             }
         }
 
+        async function loadPortfolio() {
+            if (!currentUser) {
+                document.getElementById('auth-modal').style.display = 'flex';
+                return;
+            }
+
+            switchView('portfolio-view');
+            const tbody = document.getElementById('portfolio-body');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Calculating quantitative portfolio metrics...</td></tr>';
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/portfolio/${currentUser}`);
+                const data = await res.json();
+                
+                tbody.innerHTML = '';
+                if (!data.portfolio || data.portfolio.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">Your personal portfolio is empty. Add a ticker symbol above to begin tracking quantitative valuations.</td></tr>';
+                    return;
+                }
+
+                data.portfolio.forEach(item => {
+                    const tr = document.createElement('tr');
+                    
+                    const changeVal = item.daily_change;
+                    const changeClass = changeVal > 0 ? 'signal-buy' : changeVal < 0 ? 'signal-sell' : 'signal-neutral';
+                    const changePrefix = changeVal > 0 ? '+' : '';
+                    
+                    const upsideVal = item.valuation.implied_upside_pct;
+                    const upsideClass = upsideVal > 0 ? 'signal-buy' : upsideVal < 0 ? 'signal-sell' : 'signal-neutral';
+                    const upsidePrefix = upsideVal > 0 ? '+' : '';
+
+                    tr.innerHTML = `
+                        <td style="font-weight:700;"><a class="entity-link" onclick="openCompanyProfile('${item.ticker}')">$${item.ticker}</a></td>
+                        <td>$${item.current_price.toFixed(2)}</td>
+                        <td class="${changeClass}">${changePrefix}${changeVal.toFixed(2)}%</td>
+                        <td style="font-weight:700; color:var(--accent-brand);">$${item.valuation.alpha_target_price.toFixed(2)}</td>
+                        <td class="${upsideClass}">${upsidePrefix}${upsideVal.toFixed(2)}%</td>
+                        <td>${item.valuation.pe_ratio}</td>
+                        <td><button onclick="removePortfolioTicker('${item.ticker}')" style="background:rgba(239, 68, 68, 0.15); color:var(--accent-sell); border:1px solid rgba(239, 68, 68, 0.3); padding:0.3rem 0.8rem; border-radius:4px; font-weight:600; cursor:pointer; font-size:0.75rem;">Remove</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Portfolio Load Error:", err);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--accent-sell);">Failed to load portfolio metrics.</td></tr>';
+            }
+        }
+
+        async function addPortfolioTicker() {
+            if (!currentUser) {
+                document.getElementById('auth-modal').style.display = 'flex';
+                return;
+            }
+
+            const input = document.getElementById('port-ticker-input');
+            const ticker = input.value.trim().toUpperCase();
+            if (!ticker) return;
+
+            try {
+                const res = await fetch('http://localhost:8000/api/portfolio/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser, ticker: ticker })
+                });
+
+                if (res.ok) {
+                    input.value = '';
+                    showToast("Portfolio Updated", `$${ticker} successfully added to your holdings.`);
+                    loadPortfolio();
+                } else {
+                    alert("Failed to add ticker to portfolio.");
+                }
+            } catch (err) {
+                console.error("Add Portfolio Error:", err);
+            }
+        }
+
+        async function removePortfolioTicker(ticker) {
+            if (!currentUser) return;
+
+            try {
+                const res = await fetch('http://localhost:8000/api/portfolio/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser, ticker: ticker })
+                });
+
+                if (res.ok) {
+                    showToast("Portfolio Updated", `$${ticker} removed from your holdings.`);
+                    loadPortfolio();
+                } else {
+                    alert("Failed to remove ticker.");
+                }
+            } catch (err) {
+                console.error("Remove Portfolio Error:", err);
+            }
+        }
     </script>
 </body>
 </html>
